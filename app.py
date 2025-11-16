@@ -6,7 +6,7 @@ import copy
 from dataclasses import dataclass
 from typing import List, Optional
 from rapidfuzz import fuzz
-from langchain.embeddings import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.schema import Document
 import openai
@@ -159,3 +159,4 @@ if submit and query:
         st.success("✓ נמצאה תשובה")
         st.write(result.answer)
         st.caption(f"🔹 שאלה מזוהה: {result.question}")
+
