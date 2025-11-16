@@ -8,7 +8,7 @@ from typing import List, Optional
 from rapidfuzz import fuzz
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain.schema import Document
+from langchain_core.documents import Document
 import openai
 
 # ========== הגדרות ==========
@@ -159,5 +159,6 @@ if submit and query:
         st.success("✓ נמצאה תשובה")
         st.write(result.answer)
         st.caption(f"🔹 שאלה מזוהה: {result.question}")
+
 
 
