@@ -1,7 +1,8 @@
 streamlit
 openai
-langchain
+tiktoken
 faiss-cpu
 rapidfuzz
-tiktoken
+langchain
 langchain-community
+langchain-openai
