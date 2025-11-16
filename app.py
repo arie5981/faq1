@@ -1,3 +1,4 @@
+import streamlit as st
 import os
 import re
 import unicodedata
@@ -16,7 +17,11 @@ st.set_page_config(page_title="עוזר אתר מייצגים", layout="wide")
 st.title("🟦 עוזר אתר מייצגים – גרסת דמו אינטרנטית")
 
 # קלט API key מצד המשתמש
-api_key = st.text_input("🔑 הכנס מפתח OpenAI:", type="password")
+# api_key = st.text_input("🔑 הכנס מפתח OpenAI:", type="password")
+
+# טעינת המפתח מתוך Streamlit Secrets
+api_key = st.secrets["OPENAI_API_KEY"]
+os.environ["OPENAI_API_KEY"] = api_key
 
 if not api_key:
     st.info("הכנס מפתח API כדי להתחיל.")
@@ -159,6 +164,7 @@ if submit and query:
         st.success("✓ נמצאה תשובה")
         st.write(result.answer)
         st.caption(f"🔹 שאלה מזוהה: {result.question}")
+
 
 
 
