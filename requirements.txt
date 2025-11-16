@@ -6,3 +6,4 @@ rapidfuzz
 langchain
 langchain-community
 langchain-openai
+langchain-core
