@@ -30,15 +30,15 @@ if not api_key:
 openai.api_key = api_key
 os.environ["OPENAI_API_KEY"] = api_key
 
-# ========== העלאת קובץ FAQ ==========
-st.subheader("📄 העלה קובץ FAQ (טקסט בפורמט UTF-8):")
-uploaded_file = st.file_uploader("בחר קובץ faq.txt", type=["txt"])
+# ========== טעינת קובץ FAQ מתוך הריפו ==========
+FAQ_PATH = "faq.txt"
 
-if not uploaded_file:
-    st.warning("יש להעלות קובץ FAQ כדי להמשיך.")
+try:
+    with open(FAQ_PATH, "r", encoding="utf-8") as f:
+        raw_faq = f.read()
+except FileNotFoundError:
+    st.error("❌ הקובץ faq.txt לא נמצא בריפו. ודא שהוא נמצא באותה תיקייה כמו app.py.")
     st.stop()
-
-raw_faq = uploaded_file.read().decode("utf-8")
 
 # ========== פונקציות נורמליזציה ==========
 def normalize_he(s: str) -> str:
@@ -164,6 +164,7 @@ if submit and query:
         st.success("✓ נמצאה תשובה")
         st.write(result.answer)
         st.caption(f"🔹 שאלה מזוהה: {result.question}")
+
 
 
 
