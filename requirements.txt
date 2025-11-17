@@ -3,7 +3,6 @@ openai
 tiktoken
 faiss-cpu
 rapidfuzz
-langchain
+langchain-core
 langchain-community
 langchain-openai
-langchain-core
