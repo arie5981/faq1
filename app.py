@@ -149,21 +149,60 @@ def search_faq(query: str) -> Optional[str]:
 
     return None
 
-# ========== ממשק משתמש ==========
-st.subheader("❓ שאל שאלה")
+# ========== RTL + עיצוב כללי ==========
+st.markdown("""
+<style>
+html, body, [class*="css"] {
+    direction: rtl;
+    text-align: right;
+    font-family: "Alef", "Segoe UI", sans-serif;
+}
+</style>
+""", unsafe_allow_html=True)
 
-query = st.text_input("הקלד שאלה כאן:")
-submit = st.button("שלח")
+st.title("🤖 צ'אט התמיכה למייצגים")
 
-if submit and query:
-    result = search_faq(query)
+# ========== שמירת היסטוריה ==========
+if "messages" not in st.session_state:
+    st.session_state["messages"] = []
 
-    if not result:
-        st.error("לא נמצאה תשובה. נסה לנסח אחרת.")
+# ========== תצוגת כל ההתכתבות ==========
+st.markdown("### 💬 היסטוריית השיחה")
+
+for role, msg in st.session_state["messages"]:
+    if role == "user":
+        st.markdown(f"""
+        <div style='background:#e8f0fe;padding:12px;border-radius:10px;margin:6px 0;text-align:right'>
+            <b>🧑 שאלה:</b><br>{msg}
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        st.success("✓ נמצאה תשובה")
-        st.write(result.answer)
-        st.caption(f"🔹 שאלה מזוהה: {result.question}")
+        st.markdown(f"""
+        <div style='background:#f1f1f1;padding:12px;border-radius:10px;margin:6px 0;text-align:right'>
+            <b>🤖 תשובה:</b><br>{msg}
+        </div>
+        """, unsafe_allow_html=True)
+
+# ========== שדה שאלה ==========
+query = st.text_input("✏️ הקלד שאלה חדשה כאן:")
+
+if st.button("📨 שלח"):
+    if query.strip():
+        # תשובה מהמערכת
+        result = search_faq(query)
+        if not result:
+            answer_text = "לא נמצאה תשובה. נסה לנסח אחרת."
+        else:
+            answer_text = f"{result.answer}\n\n🔹 שאלה מזוהה: {result.question}"
+
+        # שמירה להיסטוריה
+        st.session_state["messages"].append(("user", query))
+        st.session_state["messages"].append(("assistant", answer_text))
+
+        # רענון מיידי של הדף כדי להציג את ההודעה
+        st.experimental_rerun()
+
+
 
 
 
