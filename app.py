@@ -200,7 +200,9 @@ if st.button("📨 שלח"):
         st.session_state["messages"].append(("assistant", answer_text))
 
         # רענון מיידי של הדף כדי להציג את ההודעה
-        
+        st.session_state.clear()
+
+
 
 
 
