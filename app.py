@@ -20,10 +20,10 @@ st.title("🟦 עוזר אתר מייצגים – גרסת דמו אינטרנט
 if "api_key" not in st.session_state:
     st.session_state.api_key = ""
 
-# st.subheader("🔑 הגדרת מפתח OpenAI")
+st.subheader("🔑 הגדרת מפתח OpenAI")
 
-# api_key_input = st.text_input("הכנס מפתח OpenAI:", type="password")
-api_key_input = st.secrets["OPENAI_API_KEY"]
+api_key_input = st.text_input("הכנס מפתח OpenAI:", type="password")
+
 if api_key_input:
     st.session_state.api_key = api_key_input
 
@@ -205,6 +205,7 @@ if st.button("📨 שלח"):
 
         # רענון מיידי של הדף כדי להציג את ההודעה
         st.session_state.clear()
+
 
 
 
