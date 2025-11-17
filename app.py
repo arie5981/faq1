@@ -9,9 +9,9 @@ import unicodedata
 from dataclasses import dataclass
 from typing import List, Optional
 from rapidfuzz import fuzz
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
-from langchain.schema import Document
+from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_core.documents import Document
 
 
 # ============================================
@@ -164,3 +164,4 @@ for turn in st.session_state.chat:
 {turn['a']}
 ---
 """ )
+
