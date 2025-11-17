@@ -16,18 +16,22 @@ import openai
 st.set_page_config(page_title="עוזר אתר מייצגים", layout="wide")
 st.title("🟦 עוזר אתר מייצגים – גרסת דמו אינטרנטית")
 
-# קלט API key מצד המשתמש
-# api_key = st.text_input("🔑 הכנס מפתח OpenAI:", type="password")
+# ====== הגדרת API KEY ======
+if "api_key" not in st.session_state:
+    st.session_state.api_key = ""
 
-# טעינת המפתח מתוך Streamlit Secrets
-api_key = st.secrets["OPENAI_API_KEY"]
-os.environ["OPENAI_API_KEY"] = api_key
+st.subheader("🔑 הגדרת מפתח OpenAI")
 
-if not api_key:
-    st.info("הכנס מפתח API כדי להתחיל.")
+api_key_input = st.text_input("הכנס מפתח OpenAI:", type="password")
+
+if api_key_input:
+    st.session_state.api_key = api_key_input
+
+if not st.session_state.api_key:
+    st.warning("יש להזין מפתח API כדי להמשיך")
     st.stop()
 
-openai.api_key = api_key
+openai.api_key = st.session_state.api_key
 os.environ["OPENAI_API_KEY"] = api_key
 
 # ========== טעינת קובץ FAQ מתוך הריפו ==========
@@ -201,6 +205,7 @@ if st.button("📨 שלח"):
 
         # רענון מיידי של הדף כדי להציג את ההודעה
         st.session_state.clear()
+
 
 
 
