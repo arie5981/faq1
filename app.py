@@ -69,7 +69,7 @@ st.markdown(
         padding: 16px 18px;
         font-size: 16px;
         margin-bottom: 20px;
-        color: #ffffff !important;   /* תיקן לכח */
+        color: black !important;   /* תיקן לכח */
         text-align: right;
     }
 
@@ -440,4 +440,5 @@ with st.form(key="question_form", clear_on_submit=True):
             {"question": query.strip(), "answer": answer}
         )
         # אין צורך ב־experimental_rerun – Streamlit מרנדר מחדש לבד
+
 
