@@ -18,71 +18,136 @@ from langchain_core.documents import Document
 # =========================
 # הגדרות כלליות ו־CSS
 # =========================
-st.markdown("""
-<style>
+st.set_page_config(
+    page_title="תמיכה לאתר מייצגים בגבייה",
+    page_icon="💬",
+    layout="wide",
+)
 
-/* ביטול כל הרווחים של Streamlit */
-.block-container {
-    padding-top: 0rem !important;
-    padding-right: 0rem !important;
-    padding-left: 0rem !important;
-}
+# CSS לעיצוב ול־RTL
+st.markdown(
+    """
+    <style>
+    html, body, [class*="css"]  {
+        direction: rtl;
+        text-align: right;
+        font-family: "Alef", "Heebo", "Arial", sans-serif;
+        background-color: #0e1117;
+        color: #ffffff;
+    }
 
-/* מכולה להצמדת הלוגו והטקסט לימין */
-.header-wrapper {
-    width: 100%;
-    display: flex;
-    flex-direction: row-reverse;  /* לוגו בצד ימין, טקסט משמאל */
-    align-items: center;
-    justify-content: flex-start;
-    margin-top: -20px; /* אופציונלי — הצמדה למעלה */
-}
+    /* כותרת עליונה – יישור מלא לימין */
+    .header-container {
+        display: flex;
+        flex-direction: row-reverse;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 14px;
+        margin-bottom: 20px;
+    }
 
-/* הלוגו */
-.header-logo img {
-    width: 75px;
-    height: 75px;
-    margin: 0;
-    padding: 0;
-}
+    .header-text-main {
+        font-size: 26px;
+        font-weight: 700;
+        color: #1f9cf0;
+        line-height: 1.1;
+        text-align: right;
+    }
 
-/* הטקסט */
-.header-text {
-    text-align: right;
-    margin-right: 0;
-    padding-right: 0;
-    line-height: 1.15;
-}
+    .header-text-sub {
+        font-size: 16px;
+        font-weight: 500;
+        color: #4fd1ff;
+        line-height: 1.1;
+        text-align: right;
+    }
 
-/* הכותרת */
-.header-title {
-    font-size: 26px;
-    font-weight: 800;
-    color: #0073e6;
-    margin: 0;
-}
+    /* שאלות נפוצות */
+    .faq-box {
+        background-color: rgba(255,255,255,0.04);
+        border-radius: 12px;
+        padding: 16px 18px;
+        font-size: 16px;
+        margin-bottom: 20px;
+        color: black !important;   /* תיקן לכח */
+        text-align: right;
+    }
 
-/* תת־כותרת */
-.header-subtitle {
-    font-size: 16px;
-    color: #00a0e6;
-    margin: 0;
-}
+    .faq-box li {
+        margin-bottom: 6px;
+        color: black !important;
+    }
 
-</style>
+    /* בועות צ'אט */
+    .chat-bubble-question {
+        background-color: #e5e7eb;     /* אפור בהיר */
+        color: #111111;
+        border-radius: 16px;
+        padding: 10px 14px;
+        margin-bottom: 6px;
+        max-width: 80%;
+        margin-left: auto;
+    }
 
-<div class="header-wrapper">
-    <div class="header-logo">
-        <img src="https://raw.githubusercontent.com/arie5981/faq1/main/logobtl.png">
-    </div>
+    .chat-bubble-answer {
+        background-color: transparent;
+        border-radius: 16px;
+        padding: 10px 14px;
+        margin-bottom: 18px;
+        max-width: 95%;
+        margin-right: auto;
+        border: 1px solid rgba(255,255,255,0.1);
+        color: white;
+    }
 
-    <div class="header-text">
-        <div class="header-title">הביטוח הלאומי</div>
-        <div class="header-subtitle">תמיכה לאתר מייצגים בגבייה</div>
-    </div>
-</div>
+    /* תיבת השאלה */
+    .stTextInput > div > div > input {
+        direction: rtl;
+        text-align: right;
+        border-radius: 999px;
+        border: 1px solid #d1d5db;
+        padding-right: 14px;
+        padding-left: 40px;
 
-""", unsafe_allow_html=True)
+        background-color: white !important;   /* לבן ✔ */
+        color: black !important;               /* טקסט שחור ✔ */
+    }
+
+    .stTextInput input::placeholder {
+        color: #888 !important;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# =========================
+# לוגו + כותרת עליונה
+# =========================
+with st.container():
+    col_logo, col_title = st.columns([1, 5])
+
+    with col_logo:
+        st.image(
+            "https://raw.githubusercontent.com/arie5981/faq1/main/logobtl.png",
+            width=70,
+        )
+
+    with col_title:
+        st.markdown(
+            """
+            <div class="header-container">
+              <div>
+                <div class="header-text-main">הביטוח הלאומי</div>
+                <div class="header-text-sub">תמיכה לאתר מייצגים בגבייה</div>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
 
 # =========================
 # בדיקת מפתח OpenAI מתוך secrets
@@ -375,8 +440,5 @@ with st.form(key="question_form", clear_on_submit=True):
             {"question": query.strip(), "answer": answer}
         )
         # אין צורך ב־experimental_rerun – Streamlit מרנדר מחדש לבד
-
-
-
 
 
