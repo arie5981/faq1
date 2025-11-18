@@ -28,6 +28,53 @@ st.set_page_config(
 st.markdown(
     """
     <style>
+.block-container {
+    padding-top: 0rem !important;
+    padding-right: 0rem !important;
+    padding-left: 0rem !important;
+}
+
+/* מכולה להצמדת הלוגו והטקסט לימין */
+.header-wrapper {
+    width: 100%;
+    display: flex;
+    flex-direction: row-reverse;  /* לוגו בצד ימין, טקסט משמאל */
+    align-items: center;
+    justify-content: flex-start;
+    margin-top: -20px; /* אופציונלי — הצמדה למעלה */
+}
+
+/* הלוגו */
+.header-logo img {
+    width: 75px;
+    height: 75px;
+    margin: 0;
+    padding: 0;
+}
+
+/* הטקסט */
+.header-text {
+    text-align: right;
+    margin-right: 0;
+    padding-right: 0;
+    line-height: 1.15;
+}
+
+/* הכותרת */
+.header-title {
+    font-size: 26px;
+    font-weight: 800;
+    color: #0073e6;
+    margin: 0;
+}
+
+/* תת־כותרת */
+.header-subtitle {
+    font-size: 16px;
+    color: #00a0e6;
+    margin: 0;
+}
+    #======================
     html, body, [class*="css"]  {
         direction: rtl;
         text-align: right;
@@ -118,36 +165,22 @@ st.markdown(
     }
 
     </style>
+
+    
     """,
     unsafe_allow_html=True,
 )
 
+<div class="header-wrapper">
+    <div class="header-logo">
+        <img src="https://raw.githubusercontent.com/arie5981/faq1/main/logobtl.png">
+    </div>
 
-# =========================
-# לוגו + כותרת עליונה
-# =========================
-with st.container():
-    col_logo, col_title = st.columns([1, 5])
-
-    with col_logo:
-        st.image(
-            "https://raw.githubusercontent.com/arie5981/faq1/main/logobtl.png",
-            width=70,
-        )
-
-    with col_title:
-        st.markdown(
-            """
-            <div class="header-container">
-              <div>
-                <div class="header-text-main">הביטוח הלאומי</div>
-                <div class="header-text-sub">תמיכה לאתר מייצגים בגבייה</div>
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
+    <div class="header-text">
+        <div class="header-title">הביטוח הלאומי</div>
+        <div class="header-subtitle">תמיכה לאתר מייצגים בגבייה</div>
+    </div>
+</div>
 
 # =========================
 # בדיקת מפתח OpenAI מתוך secrets
@@ -440,5 +473,6 @@ with st.form(key="question_form", clear_on_submit=True):
             {"question": query.strip(), "answer": answer}
         )
         # אין צורך ב־experimental_rerun – Streamlit מרנדר מחדש לבד
+
 
 
