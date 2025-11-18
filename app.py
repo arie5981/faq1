@@ -211,15 +211,13 @@ st.markdown('<div class="question-box">', unsafe_allow_html=True)
 
 query = st.text_input("🔍 שאל שאלה והקש Enter")
 
-if query:
-    result = search_faq(query)
-    if result:
-        st.session_state.history.append(
-            (query, result.answer)
-        )
-        st.experimental_rerun()
-    else:
-        st.session_state.history.append((query, "לא נמצאה תשובה"))
-        st.experimental_rerun()
+if result:
+    st.session_state.history.append((query, result.answer))
+else:
+    st.session_state.history.append((query, "לא נמצאה תשובה"))
+
+st.session_state["refresh"] = True
+st.stop()
 
 st.markdown('</div>', unsafe_allow_html=True)
+
