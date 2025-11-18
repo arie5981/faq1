@@ -75,7 +75,7 @@ st.markdown(
 
     .faq-box li {
         margin-bottom: 6px;
-        color: white !important;
+        color: black !important;
     }
 
     /* בועות צ'אט */
@@ -440,5 +440,6 @@ with st.form(key="question_form", clear_on_submit=True):
             {"question": query.strip(), "answer": answer}
         )
         # אין צורך ב־experimental_rerun – Streamlit מרנדר מחדש לבד
+
 
 
