@@ -68,12 +68,14 @@ html, body, [class*="css"]  {
 
 /* בועת שאלה */
 .user-bubble {
-    background-color: #2d2d2d;
+    background-color: #e5e7eb;   /* אפור בהיר */
+    color: #111;                 /* שחור כהה לטקסט */
     padding: 0.8rem 1rem;
     border-radius: 18px;
-    margin: 0.2rem 0 0.4rem 0;
     display: inline-block;
+    margin-bottom: 0.5rem;
 }
+
 
 /* טקסט תשובה */
 .assistant-text {
@@ -100,7 +102,7 @@ div.stButton > button {
 # ============================================
 # אם יש לך קובץ לוגו בתיקייה, אפשר להשתמש: "logo.png"
 # כרגע נשים URL כללי, אפשר להחליף אחר כך.
-logo_url = "https://www.btl.gov.il/SiteCollectionDocuments/shikum/logobtl.png"
+logo_url = "https://raw.githubusercontent.com/arie5981/faq1/main/logobtl.png"
 
 st.markdown(
     f"""
@@ -270,3 +272,4 @@ if submitted and query:
     answer = search_faq(query)
     # הוספת תשובה להיסטוריה
     st.session_state.messages.append({"role": "assistant", "content": answer})
+
