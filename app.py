@@ -33,23 +33,25 @@ st.markdown(
         text-align: right;
         font-family: "Alef", "Heebo", "Arial", sans-serif;
         background-color: #0e1117;
-        color: #f5f5f5;
+        color: #ffffff;
     }
 
+    /* כותרת עליונה – יישור מלא לימין */
     .header-container {
         display: flex;
         flex-direction: row-reverse;
         align-items: center;
-        justify-content: flex-start;
-        gap: 12px;
+        justify-content: flex-end;
+        gap: 14px;
         margin-bottom: 20px;
     }
 
     .header-text-main {
-        font-size: 22px;
+        font-size: 26px;
         font-weight: 700;
         color: #1f9cf0;
         line-height: 1.1;
+        text-align: right;
     }
 
     .header-text-sub {
@@ -57,38 +59,34 @@ st.markdown(
         font-weight: 500;
         color: #4fd1ff;
         line-height: 1.1;
+        text-align: right;
     }
 
-    .chat-container {
-        max-width: 900px;
-        margin: 0 auto;
-    }
-
+    /* שאלות נפוצות */
     .faq-box {
-        background-color: rgba(40, 44, 52, 0.9);
+        background-color: rgba(255,255,255,0.04);
         border-radius: 12px;
-        padding: 14px 16px;
-        font-size: 14px;
-        margin-bottom: 16px;
-    }
-
-    .faq-box ul {
-        padding-right: 18px;
-        margin: 6px 0 0 0;
+        padding: 16px 18px;
+        font-size: 16px;
+        margin-bottom: 20px;
+        color: #ffffff !important;   /* תיקן לכח */
+        text-align: right;
     }
 
     .faq-box li {
-        margin-bottom: 4px;
+        margin-bottom: 6px;
+        color: white !important;
     }
 
+    /* בועות צ'אט */
     .chat-bubble-question {
-        background-color: #f0f0f0;
+        background-color: #e5e7eb;     /* אפור בהיר */
         color: #111111;
         border-radius: 16px;
         padding: 10px 14px;
         margin-bottom: 6px;
         max-width: 80%;
-        margin-left: auto;  /* ימין לשמאל – שאלות בצד ימין */
+        margin-left: auto;
     }
 
     .chat-bubble-answer {
@@ -97,39 +95,33 @@ st.markdown(
         padding: 10px 14px;
         margin-bottom: 18px;
         max-width: 95%;
-        margin-right: auto; /* תשובות יותר שמאלה */
-        border: 1px solid rgba(255,255,255,0.08);
+        margin-right: auto;
+        border: 1px solid rgba(255,255,255,0.1);
+        color: white;
     }
 
-    .chat-bubble-answer small {
-        color: #9ca3af;
-        font-size: 11px;
-    }
-
-    .input-container {
-        position: relative;
-        margin-top: 12px;
-    }
-
+    /* תיבת השאלה */
     .stTextInput > div > div > input {
         direction: rtl;
         text-align: right;
         border-radius: 999px;
-        border: 1px solid #4b5563;
+        border: 1px solid #d1d5db;
         padding-right: 14px;
         padding-left: 40px;
-        background-color: #111827;
-        color: #f9fafb;
+
+        background-color: white !important;   /* לבן ✔ */
+        color: black !important;               /* טקסט שחור ✔ */
     }
 
-    .stTextInput > div > div > input::placeholder {
-        color: #6b7280;
-        font-size: 13px;
+    .stTextInput input::placeholder {
+        color: #888 !important;
     }
+
     </style>
     """,
     unsafe_allow_html=True,
 )
+
 
 # =========================
 # לוגו + כותרת עליונה
@@ -448,3 +440,4 @@ with st.form(key="question_form", clear_on_submit=True):
             {"question": query.strip(), "answer": answer}
         )
         # אין צורך ב־experimental_rerun – Streamlit מרנדר מחדש לבד
+
