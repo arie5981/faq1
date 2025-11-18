@@ -394,12 +394,12 @@ if not st.session_state.chat_history:
         """
         <div class="faq-box">
           <strong>שאלות נפוצות:</strong>
-          <ul>
+          <ol>
             <li>איך מוסיפים משתמש חדש באתר מייצגים.</li>
             <li>מקבל הודעה שאחד או יותר מנתוני ההזדהות שגויים.</li>
             <li>איך יוצרים קיצור דרך לאתר מייצגים על שולחן העבודה.</li>
             <li>רוצה לקבל את הקוד החד פעמי לדואר אלקטרוני.</li>
-          </ul>
+          </ol>
         </div>
         """,
         unsafe_allow_html=True,
@@ -440,6 +440,7 @@ with st.form(key="question_form", clear_on_submit=True):
             {"question": query.strip(), "answer": answer}
         )
         # אין צורך ב־experimental_rerun – Streamlit מרנדר מחדש לבד
+
 
 
 
