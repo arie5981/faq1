@@ -1,15 +1,16 @@
 import streamlit as st
-import os
 import re
 import unicodedata
-from rapidfuzz import fuzz
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
+from rapidfuzz import fuzz
 import requests
 
 # =========================================================
-#   הגדרות עיצוב – RTL + עיצוב כמו ChatGPT
+#   עיצוב בסיסי – RTL + בועות בסגנון ChatGPT
 # =========================================================
+st.set_page_config(page_title="תמיכה לאתר מייצגים", layout="wide")
+
 st.markdown("""
 <style>
 html, body, [class*="css"]  {
@@ -29,24 +30,24 @@ html, body, [class*="css"]  {
 }
 
 .header-logo {
-    height: 50px;
+    height: 48px;
 }
 
 .header-text-main {
     font-weight: 700;
     font-size: 1.2rem;
-    color: #3b82f6;
+    color: #3b82f6; /* כחול */
 }
 
 .header-text-sub {
     font-weight: 500;
     font-size: 0.95rem;
-    color: #38bdf8;
+    color: #38bdf8; /* תכלת */
 }
 
 /* בועת שאלה */
 .user-bubble {
-    background-color: #e5e7eb;
+    background-color: #e5e7eb;  /* אפור בהיר */
     color: #111;
     padding: 0.8rem 1rem;
     border-radius: 18px;
@@ -60,25 +61,14 @@ html, body, [class*="css"]  {
     color: white;
 }
 
-/* שורת שאלה בתחתית */
+/* קו מפריד ותיבת שאלה בתחתית האזור */
 .question-box {
-    position: fixed;
-    bottom: 0;
-    right: 0;
-    left: 0;
-    padding: 1rem;
-    background: #111;
+    margin-top: 1.5rem;
+    padding-top: 0.8rem;
     border-top: 1px solid #333;
 }
 
-/* עיצוב תיבת קלט */
-input[type="text"] {
-    border-radius: 16px !important;
-    padding: 0.6rem 1rem !important;
-    font-size: 1rem !important;
-}
-
-/* הסתרת כפתור "שלח" */
+/* הסתרת כפתור "שלח" של הטופס – שולחים עם Enter */
 div.stButton > button {
     display: none;
 }
@@ -89,6 +79,8 @@ div.stButton > button {
 #   כותרת עם לוגו
 # =========================================================
 
+# הלוגו צריך להיות קובץ logobtl.png בריפו:
+# https://raw.githubusercontent.com/arie5981/faq1/main/logobtl.png
 logo_url = "https://raw.githubusercontent.com/arie5981/faq1/main/logobtl.png"
 
 st.markdown(f"""
@@ -97,7 +89,7 @@ st.markdown(f"""
         <div class="header-text-main">הביטוח הלאומי</div>
         <div class="header-text-sub">תמיכה לאתר מייצגים בגבייה</div>
     </div>
-    <img class="header-logo" src="{logo_url}">
+    <img class="header-logo" src="{logo_url}" alt="לוגו הביטוח הלאומי" />
 </div>
 """, unsafe_allow_html=True)
 
@@ -108,14 +100,15 @@ st.markdown(f"""
 FAQ_URL = "https://raw.githubusercontent.com/arie5981/faq1/main/faq.txt"
 
 @st.cache_data
-def load_faq():
-    text = requests.get(FAQ_URL).text
-    return text
+def load_faq_text(url: str) -> str:
+    resp = requests.get(url)
+    resp.encoding = "utf-8"
+    return resp.text
 
-faq_raw = load_faq()
+raw_faq = load_faq_text(FAQ_URL)
 
 # =========================================================
-#   מודל נתונים לשאלה
+#   מודל הנתונים + Parser ל-FAQ
 # =========================================================
 
 @dataclass
@@ -124,56 +117,52 @@ class FAQItem:
     variants: List[str]
     answer: str
 
-# =========================================================
-#   פירוק קובץ ה-FAQ
-# =========================================================
+def normalize_he(s: str) -> str:
+    """ניקוי טקסט לעברית להשוואה פאזית"""
+    if not s:
+        return ""
+    s = unicodedata.normalize("NFC", s)
+    s = re.sub(r"[\u200e\u200f]", "", s)
+    s = re.sub(r"[^\w\s\u0590-\u05FF]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip().lower()
+    return s
 
 def parse_faq(text: str) -> List[FAQItem]:
-    items = []
+    """מפרק את הקובץ לפי שאלה / ניסוחים דומים / תשובה (מתעלם מהוראה)"""
+    items: List[FAQItem] = []
     blocks = re.split(r"(?=שאלה\s*:)", text)
     for block in blocks:
         block = block.strip()
         if not block:
             continue
 
-        q = re.search(r"שאלה\s*:\s*(.+)", block)
-        a = re.search(r"(?s)תשובה\s*:\s*(.+)", block)
-        v = re.search(r"(?s)ניסוחים דומים\s*:\s*(.+?)(?:\nתשובה|\Z)", block)
+        q_match = re.search(r"שאלה\s*:\s*(.+)", block)
+        v_match = re.search(r"(?s)ניסוחים דומים\s*:\s*(.+?)(?:\nתשובה\s*:|\Z)", block)
+        a_match = re.search(r"(?s)תשובה\s*:\s*(.+?)(?:\nהוראה\s*:|\Z)", block)
 
-        question = q.group(1).strip() if q else ""
-        answer = a.group(1).strip() if a else ""
-        variants = []
+        question = q_match.group(1).strip() if q_match else ""
+        variants: List[str] = []
+        if v_match:
+            raw = v_match.group(1)
+            variants = [s.strip(" -\t") for s in raw.split("\n") if s.strip()]
 
-        if v:
-            variants = [
-                x.strip(" -\t")
-                for x in v.group(1).split("\n")
-                if x.strip()
-            ]
+        answer = a_match.group(1).strip() if a_match else ""
 
-        items.append(FAQItem(question, variants, answer))
+        if question or answer:
+            items.append(FAQItem(question=question, variants=variants, answer=answer))
+
     return items
 
-faq_items = parse_faq(faq_raw)
+faq_items = parse_faq(raw_faq)
 
 # =========================================================
-#   פונקציה לנורמליזציה
+#   מנוע חיפוש פאזי (ללא OpenAI)
 # =========================================================
 
-def normalize_he(s: str) -> str:
-    s = unicodedata.normalize("NFC", s)
-    s = re.sub(r"[^\w\s\u0590-\u05FF]", " ", s)
-    s = re.sub(r"\s+", " ", s).strip().lower()
-    return s
-
-# =========================================================
-#   מנוע חיפוש פשוט
-# =========================================================
-
-def search_faq(query: str):
+def search_faq(query: str) -> Optional[FAQItem]:
     nq = normalize_he(query)
     best_score = -1
-    best_item = None
+    best_item: Optional[FAQItem] = None
 
     for item in faq_items:
         texts = [item.question] + item.variants
@@ -185,39 +174,74 @@ def search_faq(query: str):
 
     if best_score < 55:
         return None
-
     return best_item
 
 # =========================================================
-#   שמירת היסטוריה
+#   שמירת היסטוריה ב-session_state
 # =========================================================
 
 if "history" not in st.session_state:
+    # רשימה של זוגות: (שאלה, תשובה)
     st.session_state.history = []
 
 # =========================================================
-#   הצגת היסטוריה
+#   דף ראשון – שאלות נפוצות + "איך אפשר לעזור?"
 # =========================================================
 
-for q, a in st.session_state.history:
-    st.markdown(f'<div class="user-bubble">{q}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="assistant-text">{a}</div>', unsafe_allow_html=True)
+POPULAR_QUESTIONS = [
+    "איך מוסיפים משתמש חדש באתר מייצגים.",
+    "מקבל הודעה שאחד או יותר מנתוני ההזדהות שגויים.",
+    "איך יוצרים קיצור דרך לאתר מייצגים על שולחן העבודה.",
+    "רוצה לקבל את הקוד החד פעמי לדואר אלקטרוני.",
+]
+
+# אם אין עדיין היסטוריה – מציגים "שאלות נפוצות" בצד ימין וכותרת במרכז
+if len(st.session_state.history) == 0:
+    col_right, col_center = st.columns([2, 4])
+
+    with col_right:
+        st.markdown("### שאלות נפוצות:")
+        for i, q in enumerate(POPULAR_QUESTIONS, start=1):
+            st.markdown(f"{i}. {q}")
+
+    with col_center:
+        st.markdown("<h2 style='text-align:center;'>איך אפשר לעזור?</h2>", unsafe_allow_html=True)
+        st.write("")  # רווח קטן
 
 # =========================================================
-#   תיבת השאלה בתחתית המסך
+#   הצגת היסטוריית שיחה (שאלות ותשובות)
 # =========================================================
 
-st.markdown('<div class="question-box">', unsafe_allow_html=True)
+if len(st.session_state.history) > 0:
+    st.markdown("### התכתבות:")
+    for q, a in st.session_state.history:
+        st.markdown(f"""
+<div class="user-bubble">
+<strong>שאלה:</strong> {q}
+</div>
+""", unsafe_allow_html=True)
+        st.markdown(f"""
+<div class="assistant-text">
+<strong>תשובה:</strong><br>{a}
+</div>
+""", unsafe_allow_html=True)
 
-query = st.text_input("🔍 שאל שאלה והקש Enter")
+# =========================================================
+#   תיבת שאלה בתחתית – כמו צ'אט
+# =========================================================
 
-if result:
-    st.session_state.history.append((query, result.answer))
-else:
-    st.session_state.history.append((query, "לא נמצאה תשובה"))
+st.markdown('<div class="question-box"></div>', unsafe_allow_html=True)
 
-st.session_state["refresh"] = True
-st.stop()
+with st.form("ask_form", clear_on_submit=True):
+    query = st.text_input(" ", placeholder="שאל שאלה והקש Enter")
+    submitted = st.form_submit_button("שלח")
 
-st.markdown('</div>', unsafe_allow_html=True)
+if submitted and query.strip():
+    item = search_faq(query.strip())
+    if item:
+        answer = f"{item.answer}\n\nמקור: faq\nשאלה מזוהה: {item.question}"
+    else:
+        answer = "לא נמצאה תשובה, נסה לנסח את השאלה מחדש."
 
+    st.session_state.history.append((query.strip(), answer))
+    # אין צורך ב-experimental_rerun – Streamlit מריץ מחדש אוטומטית
