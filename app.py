@@ -155,10 +155,8 @@ st.markdown(
     }
 
     /* שאלת משתמש (תיבה אפורה מעוגלת) - ההודעה של המשתמש */
-    /* Streamlit עושה לסירוגין את התפקידים, לכן נשתמש בסלקטורים כלליים יותר 
-       עבור התוכן הספציפי, אבל נשמור את הרקע הכללי של ההודעה ככהה */
-    
-    .stChatMessage[data-testid="stChatMessage"]:has(p:first-child) > div > div > div:nth-child(2) > div { 
+    /* משתמש בסלקטור :nth-child(even/odd) כדי לכוון להודעות השונות */
+    .stChatMessage:nth-child(odd) > div > div > div:nth-child(2) > div { 
         background-color: #e5e7eb;      
         color: #111111;
         border-radius: 16px; /* מעוגל בפינות */
@@ -171,7 +169,7 @@ st.markdown(
     }
 
     /* תשובת מערכת (טקסט לבן רגיל) - ההודעה של האסיסטנט */
-    .stChatMessage[data-testid="stChatMessage"]:has(div[data-testid="stMarkdown"] > p:not(:only-child)) > div > div > div:nth-child(2) > div {
+    .stChatMessage:nth-child(even) > div > div > div:nth-child(2) > div {
         background-color: transparent; 
         color: white; /* טקסט לבן */
         border-radius: 0; 
@@ -315,7 +313,8 @@ st.markdown(
 
 # 3. פונקציה לטיפול בשאלה ושליחה
 def handle_question():
-    # Streamlit Form Submit מטפל ברענון באופן אוטומטי, לכן אין צורך ב-st.experimental_rerun()
+    # Streamlit Form Submit מטפל ברענון באופן אוטומטי.
+    # ניגש לערך הקלט באמצעות המפתח שלו ב-session_state
     question_text = st.session_state.question_input
     
     if not question_text:
@@ -327,14 +326,14 @@ def handle_question():
     st.session_state.messages.append({"role": "user", "content": question_text})
     st.session_state.messages.append({"role": "assistant", "content": answer_text})
     
-    # ניקוי תיבת הקלט לאחר השליחה על ידי הטופס
-    st.session_state.question_input = ""
+    # אין צורך לנקות את תיבת הקלט, Streamlit מנקה אוטומטית טופס עם on_submit.
+    # אנחנו מנקים אותה רק אם היינו רוצים שהתוכן יישמר: st.session_state.question_input = ""
 
 
 # 4. תצוגת תוכן הדף (משתנה לפי מצב)
 if not st.session_state.messages:
     # ------------------------------------
-    # דף ראשון
+    # דף ראשון (לפני שאלה)
     # ------------------------------------
     
     # ריבוע אדום שני: שאלות נפוצות
@@ -362,11 +361,10 @@ if not st.session_state.messages:
 
 else:
     # ------------------------------------
-    # דף שני
+    # דף שני (לאחר שאלה)
     # ------------------------------------
     
     # ריבוע אדום שני: היסטוריית השיחה (בתוך אזור רקע כהה)
-    # יש להשתמש במיכל קבוע (placeholder) כדי שההודעות יעברו לאזור שניתן לגלול
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
@@ -377,7 +375,8 @@ else:
 # ------------------------------------
 placeholder_text = "שאל שאלה והקש enter" 
 
-with st.form(key='chat_input_form', clear_on_submit=False, on_submit=handle_question):
+# הוסר clear_on_submit=False כדי למנוע TypeError
+with st.form(key='chat_input_form', on_submit=handle_question):
     # תיבת הקלט
     question = st.text_input(
         "", 
@@ -385,6 +384,5 @@ with st.form(key='chat_input_form', clear_on_submit=False, on_submit=handle_ques
         key="question_input", 
         label_visibility="collapsed"
     )
-    # כפתור נסתר: חייבים אותו כדי ש-Enter יעבוד ב-Streamlit Form, אבל ה-CSS מסתיר אותו
-    # חשוב: אנחנו לא משתמשים ב-submitted, אלא ב-on_submit של הטופס
+    # כפתור נסתר: Streamlit מצפה לכפתור בתוך ה-Form, אבל ה-CSS מסתיר אותו
     st.form_submit_button("שלח", help="לחץ Enter כדי לשלוח")
