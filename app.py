@@ -5,7 +5,7 @@ import unicodedata
 import re
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain.schema import Document
+from langchain_core.documents import Document
 from rapidfuzz import fuzz
 from dataclasses import dataclass
 from typing import List, Optional
@@ -262,5 +262,6 @@ query = st.text_input("שאל שאלה והקש Enter", "")
 
 if query:
     st.write("תשובה: התשובה המתקבלת לשאלה שלך") # תשובה ממאגר FAQ או חיפוש אחר
+
 
 
