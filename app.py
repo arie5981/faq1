@@ -108,7 +108,7 @@ st.markdown(
         list-style-type: none; /* הסרת הנקודות המוגדרות כברירת מחדל */
     }
     .faq-list li {
-        color: black;
+        color: #ddd;
         margin-bottom: 8px;
         text-align: right;
     }
@@ -370,4 +370,5 @@ else:
             
             if submitted and question:
                 handle_question(question)
+
 
