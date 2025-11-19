@@ -34,13 +34,18 @@ st.markdown(
     """
     <style>
     /* הגדרות גלובליות ו-RTL */
-    /* שינוי רקע כללי ללבן/בהיר וצבע טקסט כללי לשחור - פותר את בעיית הנראות הכללית */
+    /* הרקע הכללי והטקסט הכללי של האפליקציה (כפי שמופיע בצילום, רוב הדף בהיר) */
     html, body, [class*="css"] {
         direction: rtl;
         text-align: right;
         font-family: "Alef", "Heebo", "Arial", sans-serif;
-        background-color: #f0f2f6; /* רקע בהיר (לבן/אפור בהיר) */
         color: #000000; /* טקסט כללי שחור */
+    }
+    
+    /* קביעת הרקע הראשי של הדף כבהיר (פותר את הפס האפור החודר) */
+    /* הסלקטור הזה מכוון למיכל הראשי של Streamlit */
+    [data-testid="stAppViewBlock"] > section, [data-testid="stVerticalBlock"] > div:has([data-testid="stHorizontalBlock"]) {
+        background-color: #f0f2f6; /* רקע בהיר (לבן/אפור בהיר) */
     }
     
     /* מכל הכותרת העליונה (לוגו + טקסט) */
@@ -58,7 +63,6 @@ st.markdown(
     .logo-btl {
         height: 40px; 
         width: auto;
-        /* יישור הלוגו לקו התחתון של הטקסט */
         align-self: flex-start; 
         padding-top: 5px;
     }
@@ -133,75 +137,85 @@ st.markdown(
 
     /* ************** סגנון בועות צ'אט (לדף השני) ************** */
     
-    /* רקע הצ'אט צריך להישאר כהה כפי שהיה בצילום המסך */
-    /* מיכל ראשי של הצ'אט (שמאל למטה) */
-    [data-testid="stSidebarContent"] ~ section > div:first-child > div:first-child > div:first-child {
-        background-color: #0e1117; /* רקע כהה לשדה הצ'אט עצמו */
-        height: 100vh;
-        width: 100%;
-        position: fixed;
+    /* רקע הצ'אט צריך להישאר כהה */
+    /* זה מכוון למיכל הראשי של ההיסטוריה */
+    [data-testid="stChatMessage"]:nth-child(even) + [data-testid="stChatMessage"] + [data-testid="stVerticalBlock"] {
+        background-color: #0e1117; 
+        color: white;
     }
-
-
+    
+    /* מיכל ראשי של הצ'אט (האזור השחור בצילום) */
+    /* מכוון לכל האזור של הצ'אט - נותן לו רקע שחור */
+    [data-testid="stChatMessage"] {
+        background-color: #0e1117; 
+    }
+    
     /* הסתרת האייקון של המשתמש */
     .stChatMessage [data-testid="stChatMessageContent"] > div:first-child > div:first-child {
         display: none;
     }
 
     /* מיכל השאלה (משתמש) - תיבה אפורה מעוגלת */
-    .stChatMessage:nth-child(odd) [data-testid="stMarkdown"] { /* שאלות המשתמש */
-        background-color: #e5e7eb;      /* אפור בהיר */
+    .stChatMessage:nth-child(odd) [data-testid="stMarkdown"] { 
+        background-color: #e5e7eb;      
         color: #111111;
         border-radius: 16px;
         padding: 10px 14px;
         max-width: 80%;
-        margin-left: 0; /* יישור לימין של התיבה */
+        margin-left: 0; 
         margin-right: auto;
         text-align: right;
         direction: rtl;
     }
 
     /* מיכל התשובה (מערכת) - טקסט לבן רגיל (כי הרקע שחור) */
-    .stChatMessage:nth-child(even) [data-testid="stMarkdown"] { /* תשובות ה-AI */
-        background-color: transparent; /* רקע שקוף */
-        color: white; /* טקסט לבן רגיל */
-        border-radius: 0; /* ללא פינות מעוגלות */
+    .stChatMessage:nth-child(even) [data-testid="stMarkdown"] { 
+        background-color: transparent; 
+        color: white; 
+        border-radius: 0; 
         padding: 10px 0;
         max-width: 95%;
-        margin-left: auto; /* יישור לימין של הטקסט */
+        margin-left: auto; 
         margin-right: 0;
         text-align: right;
         direction: rtl;
     }
     
-    .stChatMessage:nth-child(even) { /* מיכל ההודעה עצמו */
+    .stChatMessage:nth-child(even) { 
         text-align: right !important;
         direction: rtl !important;
-        margin-bottom: 15px; /* רווח בין תשובות */
+        margin-bottom: 15px; 
     }
 
-    /* ************** תיבת השאלה התחתונה ************** */
+    /* ************** תיבת השאלה התחתונה - פתרון בעיה 1 ************** */
 
-    /* מיקום תיבת השאלה בתחתית המסך (מקובע) */
-    [data-testid="stForm"] {
+    /* סלקטור חזק יותר למיקום תיבת השאלה בתחתית המסך (מקובע) */
+    /* מכוון ל-Container שמכיל את הטופס הראשי. זה יפתור את הבעיה ברוב המקרים */
+    [data-testid="stVerticalBlock"] > div:last-child {
         position: fixed;
         bottom: 0;
         width: 100%;
         max-width: 700px; /* רוחב מרבי של התוכן הראשי */
         left: 50%;
         transform: translateX(-50%);
-        padding: 15px;
-        background-color: #f0f2f6; /* רקע בהיר לתיבת הקלט בדף הראשי */
-        box-shadow: 0 -5px 10px rgba(0,0,0,0.2);
+        padding: 15px 0; /* רווח תחתון וקצת רווח צדדי */
+        /* רקע שקוף או כמעט שקוף כדי למנוע את הפס האפור החודר */
+        background-color: rgba(240, 242, 246, 0.95); 
+        box-shadow: 0 -5px 10px rgba(0,0,0,0.1);
         z-index: 100;
     }
-
+    
+    /* סגנון לטופס עצמו בתוך המיכל התחתון */
+    [data-testid="stForm"] {
+        padding: 0 15px 0 15px; /* רק ריפוד צדדי */
+    }
+    
     /* עיצוב תיבת הטקסט בתוך ה-Form */
     .stTextInput > div > div > input {
         direction: rtl;
         text-align: right;
         border-radius: 999px; /* מעוגל בפינות */
-        border: 1px solid #4fd1ff; /* מסגרת תכלת */
+        border: 1px solid #1f9cf0; /* מסגרת כחולה */
         padding-right: 18px;
         padding-left: 18px;
         background-color: white !important;
@@ -324,6 +338,7 @@ def handle_question(question_text):
 
 
 # 4. הצגת ממשק המשתמש (מטפלת בשני המצבים: דף ראשון / דף צ'אט)
+
 if not st.session_state.messages:
     # ------------------------------------
     # ממשק דף ראשון (ללא היסטוריה)
@@ -333,7 +348,6 @@ if not st.session_state.messages:
     st.markdown("<div class='main-prompt-title'>איך אפשר לעזור?</div>", unsafe_allow_html=True)
     
     # מיכל עם רקע בהיר לשאלות הנפוצות והטקסט השחור
-    # *הוספת class למיכל כדי לעצב אותו ב-CSS*
     with st.container():
         # כותרת שאלות נפוצות
         st.markdown('<div class="faq-container">', unsafe_allow_html=True)
@@ -353,44 +367,46 @@ if not st.session_state.messages:
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
-
-    # הצבת תיבת השאלה במרכז תחת "איך אפשר לעזור?"
-    with st.form(key='center_form', clear_on_submit=True):
+    # ------------------------------------
+    # תיבת שאלה מקובעת (מוצגת תמיד)
+    # ------------------------------------
+    # נשתמש בטופס גנרי אחד לטיפול בקלט
+    
+    # Streamlit תמיד מציב את הטופס בסוף העמוד. אנו משתמשים ב-CSS כדי למקם אותו 
+    # בצורה מקובעת בתחתית המסך.
+    with st.form(key='chat_input_form', clear_on_submit=True):
         question = st.text_input(
             "", 
             placeholder="שאל שאלה והקש Enter", 
-            key="initial_question_input", 
+            key="question_input", 
             label_visibility="collapsed"
         )
-        # כפתור נסתר לשליחה אוטומטית בלחיצה על Enter
         submitted = st.form_submit_button("שאל", help="לחץ Enter כדי לשלוח") 
         
         if submitted and question:
             handle_question(question)
 
+
 else:
     # ------------------------------------
-    # ממשק דפים לאחרים (עם היסטוריה)
+    # ממשק צ'אט (עם היסטוריה)
     # ------------------------------------
     
     # 5. הצגת היסטוריית השיחה
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
-            # Streamlit משתמש ב-Markdown עבור התוכן
             st.markdown(message["content"])
 
-    # 6. תיבת שאלה בתחתית המסך (בתוך טופס מקובע באמצעות CSS)
-    # נשתמש במיכל קבוע (st.container) כדי לוודא שתיבת הקלט מופיעה למטה 
-    with st.container():
-        with st.form(key='bottom_form', clear_on_submit=True):
-            question = st.text_input(
-                "", 
-                placeholder="שאל שאלה והקש Enter", 
-                key="chat_question_input", 
-                label_visibility="collapsed"
-            )
-            # כפתור נסתר לשליחה אוטומטית בלחיצה על Enter
-            submitted = st.form_submit_button("שלח", help="לחץ Enter כדי לשלוח") 
-            
-            if submitted and question:
-                handle_question(question)
+    # 6. תיבת שאלה בתחתית המסך
+    # נשתמש שוב באותו טופס כדי לשמור על המיקום הקבוע
+    with st.form(key='chat_input_form_after', clear_on_submit=True):
+        question = st.text_input(
+            "", 
+            placeholder="שאל שאלה נוספת והקש Enter", 
+            key="question_input_after", 
+            label_visibility="collapsed"
+        )
+        submitted = st.form_submit_button("שלח", help="לחץ Enter כדי לשלוח") 
+        
+        if submitted and question:
+            handle_question(question)
