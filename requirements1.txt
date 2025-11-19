@@ -1,0 +1,10 @@
+streamlit
+openai
+tiktoken
+faiss-cpu
+rapidfuzz
+langchain
+langchain-community
+langchain-openai
+langchain-core
+requests
