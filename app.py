@@ -2,16 +2,9 @@ import os
 import re
 import openai
 import streamlit as st
-# ============================
-# שלב 1: הגדרת API KEY
-# ============================
-# תיקון: הייבוא של OpenAIEmbeddings עבר לחבילה langchain_openai.
 from langchain_openai import OpenAIEmbeddings
-# תיקון: הייבוא של FAISS עבר לחבילה langchain_community.
 from langchain_community.vectorstores import FAISS
-# תיקון: הייבוא של Document עבר לחבילה langchain_core.
 from langchain_core.documents import Document
-
 from rapidfuzz import fuzz
 import requests
 import unicodedata
@@ -20,7 +13,7 @@ import unicodedata
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
 # ============================
-# שלב 2: הגדרת דף האינטרנט
+# שלב 1: הגדרת דף האינטרנט
 # ============================
 st.set_page_config(
     page_title="תמיכה לאתר מייצגים בגבייה",
@@ -29,30 +22,27 @@ st.set_page_config(
 )
 
 # ============================
-# שלב 3: הגדרות CSS והתאמות עיצוביות
-# *תיקון ממוקד לבעיות הרקע והמיקום הקבוע*
+# שלב 2: הגדרות CSS מדויקות לכל הרכיבים
 # ============================
 st.markdown(
     """
     <style>
-    /* הגדרות גלובליות ו-RTL - קובע רקע כללי לבן/בהיר */
+    /* הגדרות בסיסיות ל-RTL ולגופנים */
     html, body, [class*="css"] {
         direction: rtl;
         text-align: right;
         font-family: "Alef", "Heebo", "Arial", sans-serif;
-        color: #000000; /* טקסט כללי שחור */
+        color: #000000;
     }
     
-    /* **************** תיקון רקע (מניעת הפס האפור החודר) **************** */
-    /* מכוון למיכלים הראשיים של Streamlit כדי לכפות רקע בהיר על כל העמוד */
-    .stApp, [data-testid="stAppViewBlock"], [data-testid="stVerticalBlock"] {
+    /* **************** רקע כללי לבן/בהיר (פותר את בעיית הפס האפור) **************** */
+    /* מכוון לכל מיכלי Streamlit הראשיים כדי לכפות רקע אחיד */
+    .stApp, [data-testid="stAppViewBlock"], [data-testid="stVerticalBlock"], 
+    [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stHorizontalBlock"] {
         background-color: #f0f2f6 !important; 
     }
-    /* הסרת רווחים חיצוניים של הדף */
-    [data-testid="stSidebar"], [data-testid="stHeader"] {
-        background-color: #f0f2f6 !important;
-    }
-    /* כיבוי ה-padding הגדול של העמוד הראשי */
+    
+    /* הסרת הרווחים החיצוניים של הדף כדי למקסם את שטח התוכן */
     .block-container {
         padding-top: 1rem;
         padding-bottom: 0rem;
@@ -60,26 +50,27 @@ st.markdown(
         padding-right: 1rem;
     }
     
-    /* מכל הכותרת העליונה (לוגו + טקסט) - ממוקם בצד ימין למעלה */
+    /* הסתרת כותרת ברירת המחדל של Streamlit */
+    h1 { display: none; }
+    
+    /* ********************************************* */
+    /* ריבוע אדום עליון: לוגו וכותרות */
+    /* ********************************************* */
     .header-container {
         display: flex;
         flex-direction: row-reverse; /* יישור RTL */
         align-items: center;
-        justify-content: flex-end; /* הצמדה לימין */
+        justify-content: flex-start; /* הצמדה לימין */
         gap: 14px;
         margin-bottom: 20px;
         padding-top: 10px;
     }
 
-    /* עיצוב הלוגו */
     .logo-btl {
         height: 40px; 
         width: auto;
-        align-self: flex-start; 
-        padding-top: 5px;
     }
 
-    /* עיצוב הטקסט הראשי בכותרת (כחול) */
     .header-text-main {
         font-size: 26px;
         font-weight: 700;
@@ -87,7 +78,6 @@ st.markdown(
         line-height: 1.1;
     }
 
-    /* עיצוב טקסט משני בכותרת (תכלת) */
     .header-text-sub {
         font-size: 16px;
         font-weight: 500;
@@ -95,26 +85,12 @@ st.markdown(
         line-height: 1.1;
     }
 
-    /* כותרת מרכזית בדף הראשון */
-    .main-prompt-title {
-        font-size: 28px;
-        font-weight: 600;
-        color: #000000; 
-        text-align: center;
-        margin-top: 100px; 
-        margin-bottom: 30px;
-        width: 100%;
-    }
-
-    /* הסתרת הכותרת הדיפולטית של Streamlit */
-    h1 { display: none; }
-
     /* ********************************************* */
-    /* עיצוב שאלות נפוצות */
+    /* ריבוע אדום שני (דף 1): שאלות נפוצות */
     /* ********************************************* */
     .faq-container {
-        background-color: #ffffff; /* רקע לבן בתוך המיכל */
-        color: black !important; 
+        background-color: #ffffff; /* רקע לבן */
+        color: black; 
         padding: 20px;
         border-radius: 12px;
         margin-top: 30px;
@@ -122,11 +98,11 @@ st.markdown(
     }
     
     .faq-container h2 {
-        color: black !important; 
+        color: black; 
         font-weight: 600;
     }
 
-    /* סגנון עבור רשימת השאלות הנפוצות */
+    /* סגנון הרשימה */
     .faq-container ul {
         margin-bottom: 0;
         padding: 0 10px;
@@ -134,16 +110,11 @@ st.markdown(
         list-style-type: none; 
     }
     .faq-container li {
-        color: black !important; 
+        color: black; 
         margin-bottom: 8px;
         text-align: right;
-        cursor: pointer; 
     }
-    .faq-container li:hover {
-        text-decoration: underline;
-        color: #1f9cf0 !important;
-    }
-    /* מיספור כחול מודגש משמאל */
+    /* מיספור כחול מודגש */
     .faq-container li:before {
         content: attr(data-list-number); 
         color: #1f9cf0; 
@@ -153,25 +124,38 @@ st.markdown(
         direction: ltr; 
     }
 
+    /* ********************************************* */
+    /* ריבוע אדום שלישי (דף 1): כותרת מרכזית */
+    /* ********************************************* */
+    .main-prompt-title {
+        font-size: 28px;
+        font-weight: 600;
+        color: #000000; 
+        text-align: center;
+        margin-top: 50px; /* מרווח טוב מ"שאלות נפוצות" */
+        margin-bottom: 30px;
+        width: 100%;
+    }
 
-    /* ************** סגנון בועות צ'אט (דף שני - רקע צ'אט כהה) ************** */
+    /* ********************************************* */
+    /* דף שני: עיצוב הצ'אט (היסטוריה) */
+    /* ********************************************* */
     
-    /* מיכל ראשי של הצ'אט (האזור שמאלי הכהה בצילום) */
-    /* מכוון למיכל שנוצר ע"י st.chat_message */
+    /* רקע כהה לאזור השיחה עצמו */
     [data-testid="stChatMessage"] {
-        background-color: #0e1117; /* רקע כהה לשדה הצ'אט */
+        background-color: #0e1117; /* רקע כהה */
     }
     
     /* הסרת האייקון של המשתמש */
     .stChatMessage [data-testid="stChatMessageContent"] > div:first-child > div:first-child {
         display: none;
     }
-    
-    /* מיכל השאלה (משתמש) - תיבה אפורה מעוגלת */
+
+    /* שאלת משתמש (תיבה אפורה מעוגלת) */
     .stChatMessage:nth-child(odd) [data-testid="stMarkdown"] { 
         background-color: #e5e7eb;      
         color: #111111;
-        border-radius: 16px;
+        border-radius: 16px; /* מעוגל בפינות */
         padding: 10px 14px;
         max-width: 80%;
         margin-left: 0; 
@@ -180,10 +164,10 @@ st.markdown(
         direction: rtl;
     }
 
-    /* מיכל התשובה (מערכת) - טקסט לבן רגיל (כי הרקע כהה) */
+    /* תשובת מערכת (טקסט לבן רגיל) */
     .stChatMessage:nth-child(even) [data-testid="stMarkdown"] { 
         background-color: transparent; 
-        color: white; 
+        color: white; /* טקסט לבן */
         border-radius: 0; 
         padding: 10px 0;
         max-width: 95%;
@@ -192,38 +176,28 @@ st.markdown(
         text-align: right;
         direction: rtl;
     }
-    
-    .stChatMessage:nth-child(even) { 
-        text-align: right !important;
-        direction: rtl !important;
-        margin-bottom: 15px; 
-    }
 
-    /* ************** תיבת השאלה התחתונה - תיקון מיקום ורקע ************** */
+    /* ********************************************* */
+    /* ריבוע אדום שלישי (דף 2): תיבת הקלט הקבועה */
+    /* ********************************************* */
 
-    /* סלקטור זה מכוון ל-Container האחרון בדף ונותן לו מיקום קבוע (פתרון בעיה 1) */
-    /* אנו מוסיפים פדדניג תחתון לאזור התוכן הראשי כדי שהצ'אט לא יסתיר את השאלות */
+    /* מפנה מקום בתחתית הדף לתיבת הקלט הקבועה */
     [data-testid="stVerticalBlock"] {
-        padding-bottom: 70px; /* מפנה מקום לתיבת הקלט הקבועה */
+        padding-bottom: 70px; 
     }
 
+    /* מקבע את המיכל האחרון בתחתית המסך */
     [data-testid="stVerticalBlock"] > div:last-child {
         position: fixed;
         bottom: 0;
         width: 100%;
-        max-width: 700px; /* רוחב מרבי של התוכן הראשי (יש לשים לב לרוחב הדף) */
+        max-width: 700px; /* רוחב שמתאים לתוכן הראשי */
         left: 50%;
         transform: translateX(-50%);
         padding: 15px 0; 
-        /* רקע המכסה את החלק התחתון של המסך - פותר את הפס האפור */
-        background-color: #f0f2f6; 
+        background-color: #f0f2f6; /* רקע בהיר */
         box-shadow: 0 -5px 10px rgba(0,0,0,0.1);
         z-index: 100;
-    }
-    
-    /* ה-Form צריך להיות ממוקם בתוך המיכל הקבוע */
-    [data-testid="stForm"] {
-        padding: 0 15px 0 15px; 
     }
     
     /* עיצוב תיבת הטקסט בתוך ה-Form */
@@ -231,7 +205,7 @@ st.markdown(
         direction: rtl;
         text-align: right;
         border-radius: 999px; /* מעוגל בפינות */
-        border: 1px solid #1f9cf0; 
+        border: 1px solid #1f9cf0; /* מסגרת כחולה */
         padding-right: 18px;
         padding-left: 18px;
         background-color: white !important;
@@ -240,20 +214,13 @@ st.markdown(
     }
 
     .stTextInput input::placeholder {
-        color: #888 !important; 
+        color: #888 !important; /* "שאל שאלה והקש enter" באפור */
     }
     
-    /* הסתרת כפתור השליחה הדיפולטי של Streamlit (השליחה מתבצעת ב-Enter) */
-    /* זה חשוב במיוחד מאחר שרציתם שליחה רק ע"י Enter */
-    .stButton > button {
+    /* הסתרת כפתור השליחה (כפי שביקשת) */
+    .stButton > button, .stFormSubmitButton {
         display: none !important;
     }
-    
-    /* הסרת כפתור השליחה הנסתר בתוך הטופס */
-    .stFormSubmitButton {
-        display: none !important;
-    }
-
 
     </style>
     """,
@@ -261,9 +228,10 @@ st.markdown(
 )
 
 # ============================
-# שלב 4: טעינת FAQ אוטומטית מ-GitHub
+# שלב 3: טעינת FAQ וניתוח טקסט
 # ============================
 FAQ_URL = "https://raw.githubusercontent.com/arie5981/faq1/main/faq.txt"
+
 # טיפול בשגיאות טעינה
 try:
     faq_text = requests.get(FAQ_URL).text
@@ -271,78 +239,61 @@ except requests.exceptions.RequestException as e:
     st.error(f"שגיאה בטעינת קובץ השאלות הנפוצות: {e}")
     faq_text = ""
 
-# ============================
-# שלב 5: נורמליזציה של טקסט
-# ============================
 def normalize_he(s: str) -> str:
     """מנקה ומנרמל טקסט לעברית"""
-    if not s:
-        return ""
+    if not s: return ""
     s = unicodedata.normalize("NFC", s)
     s = re.sub(r"[\u200e\u200f]", "", s)
     s = re.sub(r"[^\w\s\u0590-\u05FF]", " ", s)
     s = re.sub(r"\s+", " ", s).strip().lower()
     return s
 
-# ============================
-# שלב 6: יצירת אינדקס FAQ
-# ============================
 def create_faq_index(faq_text):
+    """מנתח את קובץ הטקסט ומחזיר רשימת שאלות/תשובות/וריאציות"""
     faq_items = []
-    # מפריד לפי "שאלה :"
     blocks = re.split(r"(?=שאלה\s*:)", faq_text)
     for block in blocks:
         block = block.strip()
-        if not block:
-            continue
-
+        if not block: continue
         q_match = re.search(r"שאלה\s*:\s*(.+)", block)
         a_match = re.search(r"(?s)תשובה\s*:\s*(.+?)(?:\nהוראה\s*:|\Z)", block)
         v_match = re.search(r"(?s)ניסוחים דומים\s*:\s*(.+?)(?:\nתשובה\s*:|\Z)", block)
-
         question = q_match.group(1).strip() if q_match else ""
         answer = a_match.group(1).strip() if a_match else ""
         variants = [s.strip(" -\t") for s in v_match.group(1).split("\n") if s.strip()] if v_match else []
-
         faq_items.append({"question": question, "answer": answer, "variants": variants})
     return faq_items
 
 faq_items = create_faq_index(faq_text)
 
-# ============================
-# שלב 7: חיפוש פאזי
-# ============================
 def search_faq(query: str):
+    """מבצע חיפוש פאזי מול ה-FAQ ומחזיר את התשובה הטובה ביותר"""
     query = normalize_he(query)
     scored = []
     
-    # חיפוש פאזי מול השאלה והוריאציות שלה
     for item in faq_items:
         all_texts = [item['question']] + item['variants']
         for text in all_texts:
             score = fuzz.token_sort_ratio(query, normalize_he(text))
             scored.append((score, item))
     
-    # מיון לפי ציון החיפוש הפאזי
     scored.sort(reverse=True, key=lambda x: x[0])
     top = scored[:5]
     
-    # אם הציון הגבוה ביותר מעל סף מסוים, מחזירים את התשובה
     if top and top[0][0] >= 55:
         return top[0][1]['answer']
     else:
         return "לא נמצאה תשובה. נסה לנסח אחרת."
 
 # ============================
-# שלב 8: ממשק משתמש וניהול מצב (Session State)
+# שלב 4: ממשק משתמש וניהול מצב
 # ============================
 
 # 1. ניהול מצב שיחה (Session State)
 if "messages" not in st.session_state:
-    # הודעת הפתיחה הראשונה היא ריקה כדי לאפשר את הצגת דף הכניסה
     st.session_state.messages = []
 
-# 2. כותרת עליונה ולוגו
+# 2. ריבוע עליון: לוגו וכותרות
 st.markdown(
     f"""
     <div class="header-container">
@@ -358,7 +309,9 @@ st.markdown(
 
 # 3. פונקציה לטיפול בשאלה ושליחה
 def handle_question(question_text):
-    # הפעלת פונקציית החיפוש
+    if not question_text:
+        return
+        
     answer_text = search_faq(question_text)
     
     # הוספת השאלה והתשובה להיסטוריית השיחה
@@ -369,16 +322,13 @@ def handle_question(question_text):
     st.experimental_rerun()
 
 
-# 4. הצגת ממשק המשתמש (דף ראשון / דף צ'אט)
+# 4. תצוגת תוכן הדף (משתנה לפי מצב)
 if not st.session_state.messages:
     # ------------------------------------
-    # ממשק דף ראשון (ללא היסטוריה)
+    # דף ראשון
     # ------------------------------------
     
-    # כותרת מרכזית ("איך אפשר לעזור?")
-    st.markdown("<div class='main-prompt-title'>איך אפשר לעזור?</div>", unsafe_allow_html=True)
-    
-    # מיכל עם רקע לבן לשאלות הנפוצות והטקסט השחור
+    # ריבוע אדום שני: שאלות נפוצות
     with st.container():
         st.markdown('<div class="faq-container">', unsafe_allow_html=True)
         st.subheader("שאלות נפוצות:")
@@ -397,34 +347,36 @@ if not st.session_state.messages:
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
+    # ריבוע אדום שלישי: כותרת "איך אפשר לעזור?"
+    st.markdown("<div class='main-prompt-title'>איך אפשר לעזור?</div>", unsafe_allow_html=True)
+
+
 else:
     # ------------------------------------
-    # ממשק צ'אט (עם היסטוריה)
+    # דף שני
     # ------------------------------------
     
-    # הצגת היסטוריית השיחה
+    # ריבוע אדום שני: היסטוריית השיחה (בתוך אזור רקע כהה)
+    # Streamlit מטפל אוטומטית ביצירת ה-ChatMessage עם הרקע הכהה שהגדרנו ב-CSS
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
 
 # ------------------------------------
-# 5. תיבת שאלה מקובעת (מוצגת תמיד בתחתית)
+# 5. ריבוע שלישי (קבוע): תיבת שאלה תמיד בתחתית
 # ------------------------------------
-# הטופס נמצא תמיד בסוף הקוד כדי ש-Streamlit ימקם אותו אחרון, 
-# וה-CSS יקבע אותו בתחתית המסך.
-placeholder_text = "שאל שאלה נוספת והקש enter" if st.session_state.messages else "שאל שאלה והקש enter"
+placeholder_text = "שאל שאלה והקש enter" 
 
 with st.form(key='chat_input_form', clear_on_submit=True):
-    # תיבת קלט גלויה
+    # תיבת הקלט
     question = st.text_input(
         "", 
         placeholder=placeholder_text, 
         key="question_input", 
         label_visibility="collapsed"
     )
-    # כפתור נסתר: חייבים לשים כפתור submit בתוך ה-Form כדי שה-Enter יעבוד
-    # ה-CSS למעלה דואג להסתיר אותו
+    # כפתור נסתר: חייבים אותו כדי ש-Enter יעבוד ב-Streamlit Form, אבל ה-CSS מסתיר אותו
     submitted = st.form_submit_button("שלח", help="לחץ Enter כדי לשלוח") 
     
     if submitted and question:
