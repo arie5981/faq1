@@ -34,12 +34,13 @@ st.markdown(
     """
     <style>
     /* הגדרות גלובליות ו-RTL */
+    /* שינוי רקע כללי ללבן/בהיר וצבע טקסט כללי לשחור - פותר את בעיית הנראות הכללית */
     html, body, [class*="css"] {
         direction: rtl;
         text-align: right;
         font-family: "Alef", "Heebo", "Arial", sans-serif;
-        background-color: #0e1117; /* רקע כהה */
-        color: #ffffff;
+        background-color: #f0f2f6; /* רקע בהיר (לבן/אפור בהיר) */
+        color: #000000; /* טקסט כללי שחור */
     }
     
     /* מכל הכותרת העליונה (לוגו + טקסט) */
@@ -82,7 +83,7 @@ st.markdown(
     .main-prompt-title {
         font-size: 28px;
         font-weight: 600;
-        color: #ffffff;
+        color: #000000; /* שחור על רקע בהיר */
         text-align: center;
         margin-top: 100px; 
         margin-bottom: 30px;
@@ -92,28 +93,35 @@ st.markdown(
     /* הסתרת הכותרת הדיפולטית של Streamlit */
     h1 { display: none; }
 
-    /* שאלות נפוצות - כותרת */
-    /* st-emotion-cache-1cpx6a9 הוא h2 הדיפולטי של Streamlit */
-    .st-emotion-cache-1cpx6a9 { 
-        text-align: right;
-        width: 100%;
-        margin-bottom: 10px;
-        color: black !important; /* צבע הכותרת "שאלות נפוצות" במיכל הבהיר */
+    /* ********************************************* */
+    /* עיצוב המיכל הבהיר עבור שאלות נפוצות (דף ראשון) */
+    /* ********************************************* */
+    .faq-container {
+        background-color: #f0f2f6; /* רקע בהיר */
+        color: black !important; /* טקסט שחור */
+        padding: 20px;
+        border-radius: 12px;
+        margin-top: 30px;
+    }
+    
+    .faq-container h2 {
+        color: black !important; /* כותרת הרשימה בשחור */
+        font-weight: 600;
     }
 
-    /* סגנון עבור רשימת השאלות הנפוצות בתוך המיכל הבהיר */
-    .faq-list {
-        margin-bottom: 40px;
+    /* סגנון עבור רשימת השאלות הנפוצות */
+    .faq-container ul {
+        margin-bottom: 0;
         padding: 0 10px;
         list-style-position: inside;
         list-style-type: none; /* הסרת הנקודות המוגדרות כברירת מחדל */
     }
-    .faq-list li {
-        color: black; /* טקסט שחור כנדרש */
+    .faq-container li {
+        color: black !important; /* טקסט שחור כנדרש */
         margin-bottom: 8px;
         text-align: right;
     }
-    .faq-list li:before {
+    .faq-container li:before {
         content: attr(data-list-number); /* שימוש באטריבוט למיספור */
         color: #1f9cf0; /* צבע כחול למספור */
         font-weight: 600;
@@ -122,7 +130,18 @@ st.markdown(
         direction: ltr; /* להפוך את כיוון המספר */
     }
 
+
     /* ************** סגנון בועות צ'אט (לדף השני) ************** */
+    
+    /* רקע הצ'אט צריך להישאר כהה כפי שהיה בצילום המסך */
+    /* מיכל ראשי של הצ'אט (שמאל למטה) */
+    [data-testid="stSidebarContent"] ~ section > div:first-child > div:first-child > div:first-child {
+        background-color: #0e1117; /* רקע כהה לשדה הצ'אט עצמו */
+        height: 100vh;
+        width: 100%;
+        position: fixed;
+    }
+
 
     /* הסתרת האייקון של המשתמש */
     .stChatMessage [data-testid="stChatMessageContent"] > div:first-child > div:first-child {
@@ -142,7 +161,7 @@ st.markdown(
         direction: rtl;
     }
 
-    /* מיכל התשובה (מערכת) - טקסט לבן רגיל */
+    /* מיכל התשובה (מערכת) - טקסט לבן רגיל (כי הרקע שחור) */
     .stChatMessage:nth-child(even) [data-testid="stMarkdown"] { /* תשובות ה-AI */
         background-color: transparent; /* רקע שקוף */
         color: white; /* טקסט לבן רגיל */
@@ -172,7 +191,7 @@ st.markdown(
         left: 50%;
         transform: translateX(-50%);
         padding: 15px;
-        background-color: #0e1117; /* רקע כהה */
+        background-color: #f0f2f6; /* רקע בהיר לתיבת הקלט בדף הראשי */
         box-shadow: 0 -5px 10px rgba(0,0,0,0.2);
         z-index: 100;
     }
@@ -308,34 +327,34 @@ def handle_question(question_text):
 if not st.session_state.messages:
     # ------------------------------------
     # ממשק דף ראשון (ללא היסטוריה)
-    # כדי לראות טקסט שחור, צריך לשים אותו על רקע בהיר.
     # ------------------------------------
     
     # כותרת מרכזית ("איך אפשר לעזור?")
     st.markdown("<div class='main-prompt-title'>איך אפשר לעזור?</div>", unsafe_allow_html=True)
     
     # מיכל עם רקע בהיר לשאלות הנפוצות והטקסט השחור
-    # *שימו לב:* Streamlit מגביל את עיצוב ה-container. במקום זאת, נשתמש ב-Markdown עבור כל הבלוק ונשלוט בעיצוב שלו.
-    
-    # נגדיר את תוכן ה-FAQ כולו בתוך Markdown כדי שיהיה בטוח שכל הבלוק יהיה בטקסט שחור ורקע בהיר
-    faq_block_html = """
-    <div style="background-color: #f0f2f6; color: black; padding: 20px; border-radius: 12px; margin-bottom: 50px; text-align: right;">
-        <h2 style="color: black; margin-top: 0; margin-bottom: 15px; font-weight: 600;">שאלות נפוצות:</h2>
-        <ul class="faq-list">
-            <li data-list-number="1."> איך מוסיפים משתמש חדש באתר מייצגים.</li>
-            <li data-list-number="2."> מקבל הודעה שאחד או יותר מנתוני ההזדהות שגויים.</li>
-            <li data-list-number="3."> איך יוצרים קיצור דרך לאתר מייצגים על שולחן העבודה.</li>
-            <li data-list-number="4."> רוצה לקבל את הקוד החד פעמי לדואר אלקטרוני.</li>
-        </ul>
-    </div>
-    """
-    
-    # מוודא שרשימת ה-FAQ תשתמש בסגנונות של ה-CSS המקוריים (color: black)
-    st.markdown(faq_block_html, unsafe_allow_html=True)
+    # *הוספת class למיכל כדי לעצב אותו ב-CSS*
+    with st.container():
+        # כותרת שאלות נפוצות
+        st.markdown('<div class="faq-container">', unsafe_allow_html=True)
+        st.subheader("שאלות נפוצות:")
+        
+        # רשימת השאלות (משתמשת ב-Markdown בתוך המיכל הבהיר)
+        st.markdown(
+            """
+            <ul class="faq-list">
+                <li data-list-number="1."> איך מוסיפים משתמש חדש באתר מייצגים.</li>
+                <li data-list-number="2."> מקבל הודעה שאחד או יותר מנתוני ההזדהות שגויים.</li>
+                <li data-list-number="3."> איך יוצרים קיצור דרך לאתר מייצגים על שולחן העבודה.</li>
+                <li data-list-number="4."> רוצה לקבל את הקוד החד פעמי לדואר אלקטרוני.</li>
+            </ul>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
     # הצבת תיבת השאלה במרכז תחת "איך אפשר לעזור?"
-    # השימוש ב-st.form מאפשר שליחה אוטומטית בלחיצה על Enter
     with st.form(key='center_form', clear_on_submit=True):
         question = st.text_input(
             "", 
