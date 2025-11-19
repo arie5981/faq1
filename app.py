@@ -28,96 +28,175 @@ st.set_page_config(
 )
 
 # ============================
-# שלב 3: הגדרות CSS
+# שלב 3: הגדרות CSS והתאמות עיצוביות
+# הקוד מכיל כעת את עיצובי הלוגו, הכותרת הראשית, ובועות הצ'אט
 # ============================
 st.markdown(
     """
     <style>
+    /* הגדרות גלובליות ו-RTL */
     html, body, [class*="css"] {
         direction: rtl;
         text-align: right;
         font-family: "Alef", "Heebo", "Arial", sans-serif;
-        background-color: #0e1117;
+        background-color: #0e1117; /* רקע כהה */
         color: #ffffff;
     }
-
-    /* כותרת עליונה – יישור מלא לימין */
+    
+    /* מכל הכותרת העליונה (לוגו + טקסט) */
     .header-container {
         display: flex;
-        flex-direction: row-reverse;
+        flex-direction: row-reverse; /* יישור RTL */
         align-items: center;
-        justify-content: flex-end;
+        justify-content: flex-end; /* הצמדה לימין */
         gap: 14px;
         margin-bottom: 20px;
+        padding-top: 10px;
     }
 
+    /* עיצוב הלוגו */
+    .logo-btl {
+        height: 40px; 
+        width: auto;
+        /* יישור הלוגו לקו התחתון של הטקסט */
+        align-self: flex-start; 
+        padding-top: 5px;
+    }
+
+    /* עיצוב הטקסט הראשי בכותרת (כחול) */
     .header-text-main {
         font-size: 26px;
         font-weight: 700;
-        color: #1f9cf0;
+        color: #1f9cf0; /* כחול */
         line-height: 1.1;
     }
 
+    /* עיצוב טקסט משני בכותרת (תכלת) */
     .header-text-sub {
         font-size: 16px;
         font-weight: 500;
-        color: #4fd1ff;
+        color: #4fd1ff; /* תכלת */
         line-height: 1.1;
     }
 
+    /* כותרת מרכזית בדף הראשון */
+    .main-prompt-title {
+        font-size: 28px;
+        font-weight: 600;
+        color: #ffffff;
+        text-align: center;
+        margin-top: 100px; 
+        margin-bottom: 30px;
+        width: 100%;
+    }
+
+    /* הסתרת הכותרת הדיפולטית של Streamlit */
+    h1 { display: none; }
+
     /* שאלות נפוצות */
-    .faq-box {
-        background-color: rgba(255,255,255,0.04);
-        border-radius: 12px;
-        padding: 16px 18px;
-        font-size: 16px;
-        margin-bottom: 20px;
-        color: black !important;    /* תיקון צבע */
+    .st-emotion-cache-1cpx6a9 { /* Streamlit's h2 for subheader */
+        text-align: right;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    /* סגנון עבור רשימת השאלות הנפוצות */
+    .faq-list {
+        margin-bottom: 40px;
+        padding: 0 10px;
+        list-style-position: inside;
+        list-style-type: none; /* הסרת הנקודות המוגדרות כברירת מחדל */
+    }
+    .faq-list li {
+        color: #ddd;
+        margin-bottom: 8px;
         text-align: right;
     }
-
-    .faq-box li {
-        margin-bottom: 6px;
-        color: black !important;
+    .faq-list li:before {
+        content: attr(data-list-number); /* שימוש באטריבוט למיספור */
+        color: #4fd1ff; /* צבע תכלת למספור */
+        font-weight: 600;
+        margin-left: 10px;
+        display: inline-block;
+        direction: ltr; /* להפוך את כיוון המספר */
     }
 
-    /* בועות צ'אט */
-    .chat-bubble-question {
+
+    /* ************** סגנון בועות צ'אט (לדף השני) ************** */
+
+    /* הסתרת האייקון של המשתמש */
+    .stChatMessage [data-testid="stChatMessageContent"] > div:first-child > div:first-child {
+        display: none;
+    }
+
+    /* מיכל השאלה (משתמש) - תיבה אפורה מעוגלת */
+    .stChatMessage:nth-child(odd) [data-testid="stMarkdown"] { /* שאלות המשתמש */
         background-color: #e5e7eb;      /* אפור בהיר */
         color: #111111;
         border-radius: 16px;
         padding: 10px 14px;
-        margin-bottom: 6px;
         max-width: 80%;
-        margin-left: auto;
-    }
-
-    .chat-bubble-answer {
-        background-color: transparent;
-        border-radius: 16px;
-        padding: 10px 14px;
-        margin-bottom: 18px;
-        max-width: 95%;
+        margin-left: 0; /* יישור לימין של התיבה */
         margin-right: auto;
-        border: 1px solid rgba(255,255,255,0.1);
-        color: white;
+        text-align: right;
+        direction: rtl;
     }
 
-    /* תיבת השאלה */
+    /* מיכל התשובה (מערכת) - טקסט לבן רגיל */
+    .stChatMessage:nth-child(even) [data-testid="stMarkdown"] { /* תשובות ה-AI */
+        background-color: transparent; /* רקע שקוף */
+        color: white; /* טקסט לבן רגיל */
+        border-radius: 0; /* ללא פינות מעוגלות */
+        padding: 10px 0;
+        max-width: 95%;
+        margin-left: auto; /* יישור לימין של הטקסט */
+        margin-right: 0;
+        text-align: right;
+        direction: rtl;
+    }
+    
+    .stChatMessage:nth-child(even) { /* מיכל ההודעה עצמו */
+        text-align: right !important;
+        direction: rtl !important;
+        margin-bottom: 15px; /* רווח בין תשובות */
+    }
+
+    /* ************** תיבת השאלה התחתונה ************** */
+
+    /* מיקום תיבת השאלה בתחתית המסך (מקובע) */
+    [data-testid="stForm"] {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        max-width: 700px; /* רוחב מרבי של התוכן הראשי */
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 15px;
+        background-color: #0e1117; /* רקע כהה */
+        box-shadow: 0 -5px 10px rgba(0,0,0,0.2);
+        z-index: 100;
+    }
+
+    /* עיצוב תיבת הטקסט בתוך ה-Form */
     .stTextInput > div > div > input {
         direction: rtl;
         text-align: right;
-        border-radius: 999px;
-        border: 1px solid #d1d5db;
-        padding-right: 14px;
-        padding-left: 40px;
-
-        background-color: white !important;    /* לבן ✔ */
-        color: black !important;               /* טקסט שחור ✔ */
+        border-radius: 999px; /* מעוגל בפינות */
+        border: 1px solid #4fd1ff; /* מסגרת תכלת */
+        padding-right: 18px;
+        padding-left: 18px;
+        background-color: white !important;
+        color: black !important;
+        height: 50px;
     }
 
     .stTextInput input::placeholder {
-        color: #888 !important;
+        color: #888 !important; /* טקסט אפור בתוך התיבה */
+    }
+    
+    /* הסתרת כפתור השליחה הדיפולטי של Streamlit (השליחה מתבצעת ב-Enter) */
+    .stButton > button {
+        display: none !important;
     }
 
     </style>
@@ -190,14 +269,19 @@ def search_faq(query: str):
         return "לא נמצאה תשובה. נסה לנסח אחרת."
 
 # ============================
-# שלב 8: ממשק משתמש
+# שלב 8: ממשק משתמש וניהול מצב (Session State)
 # ============================
-st.title("תמיכה לאתר מייצגים בגבייה")
 
-# כותרת עליונה
+# 1. ניהול מצב שיחה (Session State)
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# 2. כותרת עליונה ולוגו
+# הלוגו והטקסט מעוצבים כעת יחד באמצעות Markdown
 st.markdown(
-    """
+    f"""
     <div class="header-container">
+      <img class="logo-btl" src="https://raw.githubusercontent.com/arie5981/faq1/main/logobtl.png" alt="לוגו הביטוח הלאומי">
       <div>
         <div class="header-text-main">הביטוח הלאומי</div>
         <div class="header-text-sub">תמיכה לאתר מייצגים בגבייה</div>
@@ -207,16 +291,82 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# שאלות נפוצות
-st.subheader("שאלות נפוצות:")
-st.write("1. איך מוסיפים משתמש חדש באתר מייצגים.")
-st.write("2. מקבל הודעה שאחד או יותר מנתוני ההזדהות שגויים.")
-st.write("3. איך יוצרים קיצור דרך לאתר מייצגים על שולחן העבודה.")
-st.write("4. רוצה לקבל את הקוד החד פעמי לדואר אלקטרוני.")
+# 3. פונקציה לטיפול בשאלה
+def handle_question(question_text):
+    # הפעלת פונקציית החיפוש
+    answer_text = search_faq(question_text)
+    
+    # הוספת השאלה והתשובה להיסטוריית השיחה
+    st.session_state.messages.append({"role": "user", "content": question_text})
+    st.session_state.messages.append({"role": "assistant", "content": answer_text})
+    
+    # ניקוי תיבת הקלט והפעלת רענון
+    st.experimental_rerun()
 
-# תיבת שאלה
-question = st.text_input("שאל שאלה והקש Enter")
 
-if question:
-    answer = search_faq(question)
-    st.write(f"**תשובה:** {answer}")
+# 4. הצגת ממשק המשתמש (מטפלת בשני המצבים: דף ראשון / דף צ'אט)
+if not st.session_state.messages:
+    # ------------------------------------
+    # ממשק דף ראשון (ללא היסטוריה)
+    # ------------------------------------
+    
+    # כותרת מרכזית ("איך אפשר לעזור?")
+    st.markdown("<div class='main-prompt-title'>איך אפשר לעזור?</div>", unsafe_allow_html=True)
+    
+    # שאלות נפוצות
+    st.subheader("שאלות נפוצות:")
+    
+    # הצגת רשימת השאלות הנפוצות באמצעות CSS להתאמה אישית
+    st.markdown(
+        """
+        <ul class="faq-list">
+            <li data-list-number="1."> איך מוסיפים משתמש חדש באתר מייצגים.</li>
+            <li data-list-number="2."> מקבל הודעה שאחד או יותר מנתוני ההזדהות שגויים.</li>
+            <li data-list-number="3."> איך יוצרים קיצור דרך לאתר מייצגים על שולחן העבודה.</li>
+            <li data-list-number="4."> רוצה לקבל את הקוד החד פעמי לדואר אלקטרוני.</li>
+        </ul>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # הצבת תיבת השאלה במרכז תחת "איך אפשר לעזור?"
+    # השימוש ב-st.form מאפשר שליחה אוטומטית בלחיצה על Enter
+    with st.form(key='center_form', clear_on_submit=True):
+        question = st.text_input(
+            "", 
+            placeholder="שאל שאלה והקש Enter", 
+            key="initial_question_input", 
+            label_visibility="collapsed"
+        )
+        # כפתור נסתר לשליחה אוטומטית בלחיצה על Enter
+        submitted = st.form_submit_button("שאל", help="לחץ Enter כדי לשלוח") 
+        
+        if submitted and question:
+            handle_question(question)
+
+else:
+    # ------------------------------------
+    # ממשק דפים לאחרים (עם היסטוריה)
+    # ------------------------------------
+    
+    # 5. הצגת היסטוריית השיחה
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            # Streamlit משתמש ב-Markdown עבור התוכן
+            st.markdown(message["content"])
+
+    # 6. תיבת שאלה בתחתית המסך (בתוך טופס מקובע באמצעות CSS)
+    # נשתמש במיכל קבוע (st.container) כדי לוודא שתיבת הקלט מופיעה למטה 
+    with st.container():
+        with st.form(key='bottom_form', clear_on_submit=True):
+            question = st.text_input(
+                "", 
+                placeholder="שאל שאלה והקש Enter", 
+                key="chat_question_input", 
+                label_visibility="collapsed"
+            )
+            # כפתור נסתר לשליחה אוטומטית בלחיצה על Enter
+            submitted = st.form_submit_button("שלח", help="לחץ Enter כדי לשלוח") 
+            
+            if submitted and question:
+                handle_question(question)
