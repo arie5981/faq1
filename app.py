@@ -1,388 +1,264 @@
-import os
-import re
-import openai
 import streamlit as st
-from langchain_openai import OpenAIEmbeddings
-from langchain_community.vectorstores import FAISS
-from langchain_core.documents import Document
-from rapidfuzz import fuzz
-import requests
+import os
+import openai
 import unicodedata
+import re
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.vectorstores import FAISS
+from langchain.schema import Document
+from rapidfuzz import fuzz
+from dataclasses import dataclass
+from typing import List, Optional
 
-# ודא שמפתח API מוגדר בסביבה
-# הערה: עדיף להשתמש ב-st.secrets, אך נשאר עם os.getenv כרגע
-openai.api_key = os.getenv('OPENAI_API_KEY')
+# הגדרת API KEY (כדי לשלוף את המפתח OpenAI)
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# ============================
-# שלב 1: הגדרת דף האינטרנט
-# ============================
+# הגדרת עיצוב האתר
 st.set_page_config(
     page_title="תמיכה לאתר מייצגים בגבייה",
     page_icon="💬",
     layout="wide",
 )
 
-# ============================
-# שלב 2: הגדרות CSS מדויקות לכל הרכיבים
-# ============================
-st.markdown(
-    """
+st.markdown("""
     <style>
-    /* הגדרות בסיסיות ל-RTL ולגופנים */
-    html, body, [class*="css"] {
+    html, body, [class*="css"]  {
         direction: rtl;
         text-align: right;
         font-family: "Alef", "Heebo", "Arial", sans-serif;
-        color: #000000;
-    }
-    
-    /* **************** רקע כללי לבן/בהיר (פותר את בעיית הפס האפור) **************** */
-    /* מכוון לכל מיכלי Streamlit הראשיים כדי לכפות רקע אחיד */
-    .stApp, [data-testid="stAppViewBlock"], [data-testid="stVerticalBlock"], 
-    [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stHorizontalBlock"] {
-        background-color: #f0f2f6 !important; 
-    }
-    
-    /* הסרת הרווחים החיצוניים של הדף כדי למקסם את שטח התוכן */
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 0rem;
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-    
-    /* הסתרת כותרת ברירת המחדל של Streamlit */
-    h1 { display: none; }
-    
-    /* ********************************************* */
-    /* ריבוע אדום עליון: לוגו וכותרות */
-    /* ********************************************* */
-    .header-container {
-        display: flex;
-        flex-direction: row-reverse; /* יישור RTL */
-        align-items: center;
-        justify-content: flex-start; /* הצמדה לימין */
-        gap: 14px;
-        margin-bottom: 20px;
-        padding-top: 10px;
+        background-color: #0e1117;
+        color: #ffffff;
     }
 
-    .logo-btl {
-        height: 40px; 
-        width: auto;
+    /* כותרת עליונה – יישור מלא לימין */
+    .header-container {
+        display: flex;
+        flex-direction: row-reverse;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 14px;
+        margin-bottom: 20px;
     }
 
     .header-text-main {
         font-size: 26px;
         font-weight: 700;
-        color: #1f9cf0; /* כחול */
+        color: #1f9cf0;
         line-height: 1.1;
     }
 
     .header-text-sub {
         font-size: 16px;
         font-weight: 500;
-        color: #4fd1ff; /* תכלת */
+        color: #4fd1ff;
         line-height: 1.1;
     }
 
-    /* ********************************************* */
-    /* ריבוע אדום שני (דף 1): שאלות נפוצות */
-    /* ********************************************* */
-    .faq-container {
-        background-color: #ffffff; /* רקע לבן */
-        color: black; 
-        padding: 20px;
+    /* שאלות נפוצות */
+    .faq-box {
+        background-color: rgba(255,255,255,0.04);
         border-radius: 12px;
-        margin-top: 30px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    }
-    
-    .faq-container h2 {
-        color: black; 
-        font-weight: 600;
+        padding: 16px 18px;
+        font-size: 16px;
+        margin-bottom: 20px;
+        color: white;
     }
 
-    /* סגנון הרשימה */
-    .faq-container ul {
-        margin-bottom: 0;
-        padding: 0 10px;
-        list-style-position: inside;
-        list-style-type: none; 
-    }
-    .faq-container li {
-        color: black; 
-        margin-bottom: 8px;
-        text-align: right;
-    }
-    /* מיספור כחול מודגש */
-    .faq-container li:before {
-        content: attr(data-list-number); 
-        color: #1f9cf0; 
-        font-weight: 600;
-        margin-left: 10px;
-        display: inline-block;
-        direction: ltr; 
+    .faq-box li {
+        margin-bottom: 6px;
+        color: white;
     }
 
-    /* ********************************************* */
-    /* ריבוע אדום שלישי (דף 1): כותרת מרכזית */
-    /* ********************************************* */
-    .main-prompt-title {
-        font-size: 28px;
-        font-weight: 600;
-        color: #000000; 
-        text-align: center;
-        margin-top: 50px; /* מרווח טוב מ"שאלות נפוצות" */
-        margin-bottom: 30px;
-        width: 100%;
-    }
-
-    /* ********************************************* */
-    /* דף שני: עיצוב הצ'אט (היסטוריה) */
-    /* ********************************************* */
-    
-    /* רקע כהה לאזור השיחה עצמו */
-    /* מכוון לכל מיכל ה-stChatMessage כדי להבטיח שהרקע הכהה יתפוס את כל השטח */
-    [data-testid="stChatMessage"] {
-        background-color: #0e1117; 
-    }
-    
-    /* הסרת האייקון של המשתמש */
-    /* סלקטור ממוקד יותר כדי להבטיח הסרה: הילד הראשון של הילד הראשון של stChatMessageContent */
-    [data-testid="stChatMessageContent"] > div:first-child > div:first-child {
-        display: none;
-    }
-
-    /* שאלת משתמש (תיבה אפורה מעוגלת) - ההודעה של המשתמש */
-    /* משתמש בסלקטור :nth-child(even/odd) כדי לכוון להודעות השונות */
-    .stChatMessage:nth-child(odd) > div > div > div:nth-child(2) > div { 
-        background-color: #e5e7eb;      
+    /* בועות צ'אט */
+    .chat-bubble-question {
+        background-color: #e5e7eb; /* אפור בהיר */
         color: #111111;
-        border-radius: 16px; /* מעוגל בפינות */
+        border-radius: 16px;
         padding: 10px 14px;
+        margin-bottom: 6px;
         max-width: 80%;
-        margin-left: 0; 
-        margin-right: auto;
-        text-align: right;
-        direction: rtl;
+        margin-left: auto;
     }
 
-    /* תשובת מערכת (טקסט לבן רגיל) - ההודעה של האסיסטנט */
-    .stChatMessage:nth-child(even) > div > div > div:nth-child(2) > div {
-        background-color: transparent; 
-        color: white; /* טקסט לבן */
-        border-radius: 0; 
-        padding: 10px 0;
+    .chat-bubble-answer {
+        background-color: transparent;
+        border-radius: 16px;
+        padding: 10px 14px;
+        margin-bottom: 18px;
         max-width: 95%;
-        margin-left: auto; 
-        margin-right: 0;
-        text-align: right;
-        direction: rtl;
+        margin-right: auto;
+        border: 1px solid rgba(255,255,255,0.1);
+        color: white;
     }
 
-    /* ********************************************* */
-    /* ריבוע אדום שלישי (קבוע): תיבת הקלט */
-    /* ********************************************* */
-
-    /* מפנה מקום בתחתית הדף לתיבת הקלט הקבועה */
-    [data-testid="stVerticalBlock"] {
-        padding-bottom: 70px; 
-    }
-
-    /* מקבע את המיכל האחרון בתחתית המסך */
-    [data-testid="stVerticalBlock"] > div:last-child {
-        position: fixed;
-        bottom: 0;
-        width: 100%;
-        max-width: 700px; /* רוחב שמתאים לתוכן הראשי (נשמר 700px כברירת מחדל לרוחב) */
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 15px 0; 
-        background-color: #f0f2f6; /* רקע בהיר */
-        box-shadow: 0 -5px 10px rgba(0,0,0,0.1);
-        z-index: 100;
-    }
-    
-    /* עיצוב תיבת הטקסט בתוך ה-Form */
+    /* תיבת השאלה */
     .stTextInput > div > div > input {
         direction: rtl;
         text-align: right;
-        border-radius: 999px; /* מעוגל בפינות */
-        border: 1px solid #1f9cf0; /* מסגרת כחולה */
-        padding-right: 18px;
-        padding-left: 18px;
-        background-color: white !important;
-        color: black !important;
-        height: 50px;
+        border-radius: 999px;
+        border: 1px solid #d1d5db;
+        padding-right: 14px;
+        padding-left: 40px;
+        background-color: white;
+        color: black;
     }
-
-    .stTextInput input::placeholder {
-        color: #888 !important; /* "שאל שאלה והקש enter" באפור */
-    }
-    
-    /* הסתרת כפתור השליחה (כפי שביקשת) */
-    .stButton > button, .stFormSubmitButton {
-        display: none !important;
-    }
-
     </style>
-    """,
-    unsafe_allow_html=True,
-)
+    """, unsafe_allow_html=True)
 
-# ============================
-# שלב 3: טעינת FAQ וניתוח טקסט
-# ============================
-FAQ_URL = "https://raw.githubusercontent.com/arie5981/faq1/main/faq.txt"
-
-# טיפול בשגיאות טעינה
-try:
-    faq_text = requests.get(FAQ_URL).text
-except requests.exceptions.RequestException as e:
-    st.error(f"שגיאה בטעינת קובץ השאלות הנפוצות: {e}")
-    faq_text = ""
-
+# ===========================
+# פונקציות נורמליזציה ועיבוד טקסט
+# ===========================
 def normalize_he(s: str) -> str:
-    """מנקה ומנרמל טקסט לעברית"""
-    if not s: return ""
+    """מנקה, מאחד, ומרחיב ניסוחים חלקיים לשפה טבעית."""
+    if not s:
+        return ""
     s = unicodedata.normalize("NFC", s)
     s = re.sub(r"[\u200e\u200f]", "", s)
     s = re.sub(r"[^\w\s\u0590-\u05FF]", " ", s)
     s = re.sub(r"\s+", " ", s).strip().lower()
     return s
 
-def create_faq_index(faq_text):
-    """מנתח את קובץ הטקסט ומחזיר רשימת שאלות/תשובות/וריאציות"""
-    faq_items = []
-    blocks = re.split(r"(?=שאלה\s*:)", faq_text)
-    for block in blocks:
-        block = block.strip()
-        if not block: continue
-        q_match = re.search(r"שאלה\s*:\s*(.+)", block)
-        a_match = re.search(r"(?s)תשובה\s*:\s*(.+?)(?:\nהוראה\s*:|\Z)", block)
-        v_match = re.search(r"(?s)ניסוחים דומים\s*:\s*(.+?)(?:\nתשובה\s*:|\Z)", block)
+@dataclass
+class FAQItem:
+    question: str
+    variants: List[str]
+    answer: str
+
+# ============================
+# שלב 2: קריאת קובץ ה-FAQ מ-GitHub
+# ============================
+faq_url = "https://raw.githubusercontent.com/arie5981/faq1/main/faq.txt"
+
+def read_faq_from_url(url: str) -> str:
+    import requests
+    response = requests.get(url)
+    return response.text
+
+raw_faq = read_faq_from_url(faq_url)
+
+# ============================
+# שלב 3: Parsing לקובץ ה-FAQ
+# ============================
+def parse_faq_new(text: str) -> List[FAQItem]:
+    items = []
+    blocks = re.split(r"(?=שאלה\s*:)", text)
+    for b in blocks:
+        b = b.strip()
+        if not b:
+            continue
+
+        q_match = re.search(r"שאלה\s*:\s*(.+)", b)
+        a_match = re.search(r"(?s)תשובה\s*:\s*(.+?)(?:\nהוראה\s*:|\Z)", b)
+        v_match = re.search(r"(?s)ניסוחים דומים\s*:\s*(.+?)(?:\nתשובה\s*:|\Z)", b)
+
         question = q_match.group(1).strip() if q_match else ""
         answer = a_match.group(1).strip() if a_match else ""
-        variants = [s.strip(" -\t") for s in v_match.group(1).split("\n") if s.strip()] if v_match else []
-        faq_items.append({"question": question, "answer": answer, "variants": variants})
-    return faq_items
+        variants = []
 
-faq_items = create_faq_index(faq_text)
+        if v_match:
+            raw = v_match.group(1)
+            variants = [s.strip(" -\t") for s in raw.split("\n") if s.strip()]
 
-def search_faq(query: str):
-    """מבצע חיפוש פאזי מול ה-FAQ ומחזיר את התשובה הטובה ביותר"""
-    query = normalize_he(query)
+        items.append(FAQItem(question, variants, answer))
+    return items
+
+faq_items = parse_faq_new(raw_faq)
+
+# ============================
+# שלב 4: יצירת אינדקס Embeddings על כל השאלות והניסוחים
+# ============================
+embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+
+docs = []
+for i, item in enumerate(faq_items):
+    all_variants = [item.question] + item.variants
+    merged_text = " | ".join(all_variants)
+    docs.append(Document(page_content=merged_text, metadata={"idx": i}))
+
+faq_store = FAISS.from_documents(docs, embeddings)
+
+# ============================
+# שלב 5: חיפוש פאזי + סמנטי + ניתוח כוונה
+# ============================
+def search_faq(query: str) -> Optional[str]:
+    nq = normalize_he(query)
+
+    # זיהוי כוונה (intent)
+    verbs = {
+        "add": ["הוסף", "להוסיף", "הוספה", "מוסיף", "מוסיפים", "לצרף", "צירוף", "פתיחה", "פתיחת", "רישום", "להירשם"],
+        "delete": ["מחק", "מחיקה", "להסיר", "הסר", "הסרה", "ביטול", "לבטל", "סגור", "לסגור", "ביטול משתמש"],
+        "update": ["עדכן", "לעדכן", "עדכון", "שינוי", "לשנות", "עריכה", "ערוך", "לתקן", "תיקון"]
+    }
+
+    intent = None
+    for k, words in verbs.items():
+        if any(w in nq for w in words):
+            intent = k
+            break
+
     scored = []
-    
-    for item in faq_items:
-        all_texts = [item['question']] + item['variants']
-        for text in all_texts:
-            score = fuzz.token_sort_ratio(query, normalize_he(text))
-            scored.append((score, item))
-    
+    for i, item in enumerate(faq_items):
+        all_texts = [item.question] + item.variants
+        for t in all_texts:
+            score = fuzz.token_sort_ratio(nq, normalize_he(t))
+
+            t_intent = None
+            for k, words in verbs.items():
+                if any(w in t for w in words):
+                    t_intent = k
+                    break
+
+            if intent and t_intent and intent != t_intent:
+                score -= 50
+            if intent and t_intent and intent == t_intent:
+                score += 25
+
+            scored.append((score, i, t.strip(), t_intent))
+
     scored.sort(reverse=True, key=lambda x: x[0])
     top = scored[:5]
-    
-    if top and top[0][0] >= 55:
-        return top[0][1]['answer']
-    else:
-        return "לא נמצאה תשובה. נסה לנסח אחרת."
+
+    best = top[0]
+    best_fuzzy_score = best[0]
+    result_item = None
+
+    # ============================
+    # Embeddings
+    # ============================
+    hits = faq_store.similarity_search_with_score(nq, k=8)
+    boosted_hits = []
+
+    for doc, score in hits:
+        idx = doc.metadata["idx"]
+        question_text = faq_items[idx].question
+        text_norm = normalize_he(question_text + " " + " ".join(faq_items[idx].variants))
+
+        boosted_hits.append((doc, score))
+
+    boosted_hits.sort(key=lambda x: x[1])
+
+    # נבדוק את הציון הטוב ביותר
+    best_embed_score = boosted_hits[0][1] if boosted_hits else 999
+
+    if best_fuzzy_score < 55 and best_embed_score > 1.2:
+        return "לא נמצאה תשובה, נסה לנסח את השאלה מחדש"
+
+    if best_fuzzy_score >= 55:
+        result_item = faq_items[best[1]]
+    elif boosted_hits:
+        result_item = faq_items[boosted_hits[0][0].metadata["idx"]]
+
+    if result_item:
+        answer_text = result_item.answer.strip()
+        return answer_text
+
+    return "לא נמצאה תשובה, נסה לנסח את השאלה מחדש"
+
 
 # ============================
-# שלב 4: ממשק משתמש וניהול מצב
+# שלב 6: ממשק שורת פקודה עם שאלות נפוצות
 # ============================
+query = st.text_input("שאל שאלה והקש Enter", "")
 
-# 1. ניהול מצב שיחה (Session State)
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# 2. ריבוע עליון: לוגו וכותרות
-st.markdown(
-    f"""
-    <div class="header-container">
-      <img class="logo-btl" src="https://raw.githubusercontent.com/arie5981/faq1/main/logobtl.png" alt="לוגו הביטוח הלאומי">
-      <div>
-        <div class="header-text-main">הביטוח הלאומי</div>
-        <div class="header-text-sub">תמיכה לאתר מייצגים בגבייה</div>
-      </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-# 3. פונקציה לטיפול בשאלה ושליחה
-def handle_question():
-    # Streamlit Form Submit מטפל ברענון באופן אוטומטי.
-    # ניגש לערך הקלט באמצעות המפתח שלו ב-session_state
-    question_text = st.session_state.question_input
-    
-    if not question_text:
-        return
-        
-    answer_text = search_faq(question_text)
-    
-    # הוספת השאלה והתשובה להיסטוריית השיחה
-    st.session_state.messages.append({"role": "user", "content": question_text})
-    st.session_state.messages.append({"role": "assistant", "content": answer_text})
-    
-    # אין צורך לנקות את תיבת הקלט, Streamlit מנקה אוטומטית טופס עם on_submit.
-    # אנחנו מנקים אותה רק אם היינו רוצים שהתוכן יישמר: st.session_state.question_input = ""
-
-
-# 4. תצוגת תוכן הדף (משתנה לפי מצב)
-if not st.session_state.messages:
-    # ------------------------------------
-    # דף ראשון (לפני שאלה)
-    # ------------------------------------
-    
-    # ריבוע אדום שני: שאלות נפוצות
-    with st.container():
-        st.markdown('<div class="faq-container">', unsafe_allow_html=True)
-        st.subheader("שאלות נפוצות:")
-        
-        # רשימת השאלות
-        st.markdown(
-            """
-            <ul class="faq-list">
-                <li data-list-number="1."> איך מוסיפים משתמש חדש באתר מייצגים.</li>
-                <li data-list-number="2."> מקבל הודעה שאחד או יותר מנתוני ההזדהות שגויים.</li>
-                <li data-list-number="3."> איך יוצרים קיצור דרך לאתר מייצגים על שולחן העבודה.</li>
-                <li data-list-number="4."> רוצה לקבל את הקוד החד פעמי לדואר אלקטרוני.</li>
-            </ul>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # ריבוע אדום שלישי: כותרת "איך אפשר לעזור?"
-    st.markdown("<div class='main-prompt-title'>איך אפשר לעזור?</div>", unsafe_allow_html=True)
-
-
-else:
-    # ------------------------------------
-    # דף שני (לאחר שאלה)
-    # ------------------------------------
-    
-    # ריבוע אדום שני: היסטוריית השיחה (בתוך אזור רקע כהה)
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-
-# ------------------------------------
-# 5. ריבוע שלישי (קבוע): תיבת שאלה תמיד בתחתית
-# ------------------------------------
-placeholder_text = "שאל שאלה והקש enter" 
-
-# הוסר clear_on_submit=False כדי למנוע TypeError
-with st.form(key='chat_input_form', on_submit=handle_question):
-    # תיבת הקלט
-    question = st.text_input(
-        "", 
-        placeholder=placeholder_text, 
-        key="question_input", 
-        label_visibility="collapsed"
-    )
-    # כפתור נסתר: Streamlit מצפה לכפתור בתוך ה-Form, אבל ה-CSS מסתיר אותו
-    st.form_submit_button("שלח", help="לחץ Enter כדי לשלוח")
+if query:
+    st.write("תשובה: התשובה המתקבלת לשאלה שלך") # תשובה ממאגר FAQ או חיפוש אחר
