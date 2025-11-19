@@ -29,7 +29,6 @@ st.set_page_config(
 
 # ============================
 # שלב 3: הגדרות CSS והתאמות עיצוביות
-# הקוד מכיל כעת את עיצובי הלוגו, הכותרת הראשית, ובועות הצ'אט
 # ============================
 st.markdown(
     """
@@ -93,14 +92,16 @@ st.markdown(
     /* הסתרת הכותרת הדיפולטית של Streamlit */
     h1 { display: none; }
 
-    /* שאלות נפוצות */
-    .st-emotion-cache-1cpx6a9 { /* Streamlit's h2 for subheader */
+    /* שאלות נפוצות - כותרת */
+    /* st-emotion-cache-1cpx6a9 הוא h2 הדיפולטי של Streamlit */
+    .st-emotion-cache-1cpx6a9 { 
         text-align: right;
         width: 100%;
         margin-bottom: 10px;
+        color: black !important; /* צבע הכותרת "שאלות נפוצות" במיכל הבהיר */
     }
 
-    /* סגנון עבור רשימת השאלות הנפוצות */
+    /* סגנון עבור רשימת השאלות הנפוצות בתוך המיכל הבהיר */
     .faq-list {
         margin-bottom: 40px;
         padding: 0 10px;
@@ -108,19 +109,18 @@ st.markdown(
         list-style-type: none; /* הסרת הנקודות המוגדרות כברירת מחדל */
     }
     .faq-list li {
-        color: #ddd;
+        color: black; /* טקסט שחור כנדרש */
         margin-bottom: 8px;
         text-align: right;
     }
     .faq-list li:before {
         content: attr(data-list-number); /* שימוש באטריבוט למיספור */
-        color: #4fd1ff; /* צבע תכלת למספור */
+        color: #1f9cf0; /* צבע כחול למספור */
         font-weight: 600;
         margin-left: 10px;
         display: inline-block;
         direction: ltr; /* להפוך את כיוון המספר */
     }
-
 
     /* ************** סגנון בועות צ'אט (לדף השני) ************** */
 
@@ -308,26 +308,31 @@ def handle_question(question_text):
 if not st.session_state.messages:
     # ------------------------------------
     # ממשק דף ראשון (ללא היסטוריה)
+    # כדי לראות טקסט שחור, צריך לשים אותו על רקע בהיר.
     # ------------------------------------
     
     # כותרת מרכזית ("איך אפשר לעזור?")
     st.markdown("<div class='main-prompt-title'>איך אפשר לעזור?</div>", unsafe_allow_html=True)
     
-    # שאלות נפוצות
-    st.subheader("שאלות נפוצות:")
+    # מיכל עם רקע בהיר לשאלות הנפוצות והטקסט השחור
+    # *שימו לב:* Streamlit מגביל את עיצוב ה-container. במקום זאת, נשתמש ב-Markdown עבור כל הבלוק ונשלוט בעיצוב שלו.
     
-    # הצגת רשימת השאלות הנפוצות באמצעות CSS להתאמה אישית
-    st.markdown(
-        """
+    # נגדיר את תוכן ה-FAQ כולו בתוך Markdown כדי שיהיה בטוח שכל הבלוק יהיה בטקסט שחור ורקע בהיר
+    faq_block_html = """
+    <div style="background-color: #f0f2f6; color: black; padding: 20px; border-radius: 12px; margin-bottom: 50px; text-align: right;">
+        <h2 style="color: black; margin-top: 0; margin-bottom: 15px; font-weight: 600;">שאלות נפוצות:</h2>
         <ul class="faq-list">
             <li data-list-number="1."> איך מוסיפים משתמש חדש באתר מייצגים.</li>
             <li data-list-number="2."> מקבל הודעה שאחד או יותר מנתוני ההזדהות שגויים.</li>
             <li data-list-number="3."> איך יוצרים קיצור דרך לאתר מייצגים על שולחן העבודה.</li>
             <li data-list-number="4."> רוצה לקבל את הקוד החד פעמי לדואר אלקטרוני.</li>
         </ul>
-        """,
-        unsafe_allow_html=True,
-    )
+    </div>
+    """
+    
+    # מוודא שרשימת ה-FAQ תשתמש בסגנונות של ה-CSS המקוריים (color: black)
+    st.markdown(faq_block_html, unsafe_allow_html=True)
+
 
     # הצבת תיבת השאלה במרכז תחת "איך אפשר לעזור?"
     # השימוש ב-st.form מאפשר שליחה אוטומטית בלחיצה על Enter
@@ -370,5 +375,3 @@ else:
             
             if submitted and question:
                 handle_question(question)
-
-
