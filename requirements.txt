@@ -8,3 +8,4 @@ langchain-community
 langchain-openai
 langchain-core
 requests
+pydantic>=2.0
