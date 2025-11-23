@@ -160,7 +160,8 @@ def parse_faq_new(text: str) -> List[FAQItem]:
         v_match = re.search(r"(?s)ניסוחים דומים\s*:\s*(.+?)(?:\nתשובה\s*:|\Z)", b)
 
         question = q_match.group(1).strip() if q_match else ""
-        answer = a_match.group(1).strip() if a_match else ""
+        answer = a_match.group(1) if a_match else "" # ללא .strip()
+        #answer = a_match.group(1).strip() if a_match else ""
 
         variants = []
         if v_match:
@@ -250,24 +251,53 @@ for msg in st.session_state.messages:
 </div>
 """, unsafe_allow_html=True)
     else:
+    # 💡 התיקון כאן: החלפת מעברי שורה ב-HTML <br>
+        # חשוב: יש להחליף את ה-\n ב-content לפני הכנסתו ל-f-string 
+        # 1. החלפת \n ל-<br> כדי שיעבוד בתוך ה-HTML של st.markdown
+        display_content = msg['content'].replace('\n', '<br>')
+        
         st.markdown(f"""
 <div class="assistant-text">
-<strong>תשובה:</strong> {msg['content']}
+<strong>תשובה:</strong> {display_content}
 </div>
 """, unsafe_allow_html=True)
+
+# ------------------------
+# ============================================
+#   פונקציית Callback לטיפול בשליחת הטופס
+# ============================================
+def handle_submit():
+    # Streamlit מאתחל את כל רכיבי הטופס כערכי Session State לפי מפתח ("query_input")
+    if "query_input" in st.session_state and st.session_state.query_input:
+        query = st.session_state.query_input
+        
+        # 1. הוספת השאלה להיסטוריה
+        st.session_state.messages.append({"role": "user", "content": query})
+        
+        # 2. הפעלת מנוע ה־FAQ
+        # (שים לב: נשתמש ב-query ששמרנו, לא בערך המעודכן ב-session_state)
+        answer = search_faq(query)
+        
+        # 3. הוספת תשובה להיסטוריה
+        st.session_state.messages.append({"role": "assistant", "content": answer})
+        
+        # 4. ניקוי תיבת הקלט לאחר שליחה
+        st.session_state.query_input = "" # מאפס את שדה הקלט
 
 # תיבת השאלה בתחתית (Enter שולח, בלי כפתור)
 st.markdown('<div class="question-box"></div>', unsafe_allow_html=True)
 
-with st.form("ask_form", clear_on_submit=True):
-    query = st.text_input(" ", placeholder="שאל שאלה והקש Enter")
-    submitted = st.form_submit_button("שלח")  # מוסתר ב-CSS
+with st.form("ask_form", clear_on_submit=False): # clear_on_submit=False כי אנו מנקים ידנית
+    # st.text_input עם מפתח (key) כדי שנוכל לגשת לערך שלו ב-session_state ב-callback
+    query = st.text_input(" ", 
+                          placeholder="שאל שאלה והקש Enter", 
+                          key="query_input")
+    
+    # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
+    submitted = st.form_submit_button("שלח", on_click=handle_submit)
 
-if submitted and query:
-    # הוספת השאלה להיסטוריה
-    st.session_state.messages.append({"role": "user", "content": query})
-    # הפעלת מנוע ה־FAQ
-    answer = search_faq(query)
-    # הוספת תשובה להיסטוריה
-    st.session_state.messages.append({"role": "assistant", "content": answer})
+
+
+
+
 
