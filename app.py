@@ -68,7 +68,7 @@ html, body, [class*="css"]  {
 
 /* בועת שאלה */
 .user-bubble {
-    background-color: #2d2d2d;
+    background-color: #e5e5e5;
     padding: 0.8rem 1rem;
     border-radius: 18px;
     margin: 0.2rem 0 0.4rem 0;
@@ -270,3 +270,4 @@ if submitted and query:
     answer = search_faq(query)
     # הוספת תשובה להיסטוריה
     st.session_state.messages.append({"role": "assistant", "content": answer})
+
