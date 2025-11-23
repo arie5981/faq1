@@ -258,7 +258,7 @@ for msg in st.session_state.messages:
         
         st.markdown(f"""
 <div class="assistant-text">
-<strong>תשובה:</strong> {msg['content']}
+<strong>תשובה:</strong> {display_content}
 </div>
 """, unsafe_allow_html=True)
 
@@ -295,6 +295,7 @@ with st.form("ask_form", clear_on_submit=False): # clear_on_submit=False כי א
     
     # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
     submitted = st.form_submit_button("שלח", on_click=handle_submit)
+
 
 
 
