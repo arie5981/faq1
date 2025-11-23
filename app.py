@@ -202,8 +202,6 @@ def search_faq(query: str) -> str:
 
     if best_score >= 60:
         item = faq_items[best_idx]
-        # 🌟 הוסף קו קוד זה:
-        formatted_answer = item.answer.replace('\n', '  \n') # החלפת \n בשני רווחים + \n
         return f"{item.answer}\n\nמקור: faq\nשאלה מזוהה: {item.question}"
 
     # --- fallback: embeddings ---
@@ -213,9 +211,6 @@ def search_faq(query: str) -> str:
     if best_dist < 1.1:
         idx = best_doc.metadata["idx"]
         item = faq_items[idx]
-        # 🌟 הוסף קו קוד זה:
-        formatted_answer = item.answer.replace('\n', '  \n') # החלפת \n בשני רווחים + \n
-        
         return f"{item.answer}\n\nמקור: faq\nשאלה מזוהה (סמנטי): {item.question}"
 
     return "לא נמצאה תשובה, נסה לנסח את השאלה מחדש."
@@ -255,6 +250,11 @@ for msg in st.session_state.messages:
 </div>
 """, unsafe_allow_html=True)
     else:
+    # 💡 התיקון כאן: החלפת מעברי שורה ב-HTML <br>
+        # חשוב: יש להחליף את ה-\n ב-content לפני הכנסתו ל-f-string 
+        # 1. החלפת \n ל-<br> כדי שיעבוד בתוך ה-HTML של st.markdown
+        display_content = msg['content'].replace('\n', '<br>')
+        
         st.markdown(f"""
 <div class="assistant-text">
 <strong>תשובה:</strong> {msg['content']}
@@ -294,6 +294,7 @@ with st.form("ask_form", clear_on_submit=False): # clear_on_submit=False כי א
     
     # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
     submitted = st.form_submit_button("שלח", on_click=handle_submit)
+
 
 
 
