@@ -147,31 +147,47 @@ class FAQItem:
     answer: str
 
 def parse_faq_new(text: str) -> List[FAQItem]:
-    # ...
+    items = []
+    
+    # הגדרת blocks חייבת להיות ברמת ההזחה הזו (כדי להימנע מ-NameError)
+    blocks = re.split(r"(?=שאלה\s*:)", text) 
+
     for b in blocks:
-        # ...
+        b = b.strip()
+        if not b:
+            continue
+
+        q_match = re.search(r"שאלה\s*:\s*(.+)", b)
+        # ודא שה-Regex כולל את הדגל (?s) כדי לתמוך במעברי שורה בתוך התשובה
         a_match = re.search(r"(?s)תשובה\s*:\s*(.+?)(?:\nהוראה\s*:|\Z)", b)
+        v_match = re.search(r"(?s)ניסוחים דומים\s*:\s*(.+?)(?:\nתשובה\s*:|\Z)", b)
+
+        question = q_match.group(1).strip() if q_match else ""
         
+        # 💡 התיקון למעברי שורה: עיבוד שורה-אחרי-שורה
         answer = ""
         if a_match:
             raw_answer_content = a_match.group(1)
             
-            # 💡 התיקון המדויק: טיפול בשורה-שורה
-            # 1. פיצול לכל השורות בבלוק התשובה
+            # 1. פיצול לכל השורות בבלוק התשובה (מטפל ב-\n וב-\r\n)
             lines = raw_answer_content.splitlines()
             
             # 2. ניקוי רווחים לבנים (אינדנטציה, טאבים) מכל שורה בנפרד
             cleaned_lines = [line.strip() for line in lines]
             
             # 3. חיבור מחדש באמצעות תו \n סטנדרטי
-            # זה מבטיח שיהיה תו \n תקין בין השורות
             answer = '\n'.join(cleaned_lines)
             
-            # הסרת \n מיותרים מהקצוות (אם יש)
+            # 4. ניקוי רווחים/מעברי שורה חיצוניים מיותרים
             answer = answer.strip() 
 
-        # ...
+        variants = []
+        if v_match:
+            raw = v_match.group(1)
+            variants = [s.strip(" -\t") for s in raw.split("\n") if s.strip()]
+
         items.append(FAQItem(question, variants, answer))
+
     return items
 
 faq_items = parse_faq_new(raw_faq)
@@ -352,6 +368,7 @@ with st.form("ask_form", clear_on_submit=False): # clear_on_submit=False כי א
     
     # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
     submitted = st.form_submit_button("שלח", on_click=handle_submit)
+
 
 
 
