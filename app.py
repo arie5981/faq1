@@ -188,35 +188,46 @@ faq_store = FAISS.from_documents(docs, embeddings)
 # ============================================
 # דרוש לייבא: import re
 # ודא ש-re מיובא בראש הקובץ.
+# הגדרת דפוסי Regex מחוץ לפונקציות (במקום הישן של ה-URL_PATTERN)
 
-# הגדרת דפוסי Regex בתוך הפונקציה או מחוצה לה (נשמור אותם בפנים לנוחות)
+# פאטרן 1: קישורי URL מלאים (מחייב https?://)
 URL_PATTERN = re.compile(r'>>(.*?):\s*(https?://.+?)<<', re.DOTALL)
-EMAIL_PATTERN = re.compile(r'>>(.*?):\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})<<', re.DOTALL)
 
-def replace_url(match):
+# פאטרן 2: קישורי אימייל (פורמט עם קולון)
+EMAIL_PATTERN = re.compile(r'>>(.*?):\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})<<', re.DOTALL) 
+
+# פאטרן 3: קישורי אימייל (פורמט ללא קולון - כפי שהופיע בפלט שלך)
+EMAIL_PATTERN_NOCONOL = re.compile(r'>>(.*?)\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})<<', re.DOTALL)
+
+
+def replace_link_url(match):
     """מחליף דפוס >>טקסט: URL<< לפורמט Markdown [טקסט](URL)."""
     description = match.group(1).strip()
     url = match.group(2).strip()
     return f"[{description}]({url})"
 
-def replace_email(match):
+def replace_link_email(match):
     """מחליף דפוס >>טקסט: אימייל<< לפורמט Markdown [טקסט](mailto:אימייל)."""
     description = match.group(1).strip()
     email_address = match.group(2).strip()
     # שימוש בקישור mailto: עבור כתובות אימייל
     return f"[{description}](mailto:{email_address})"
 
+
 def process_answer_content(answer_text: str) -> str:
     """מטפל בקישורים ובמעברי שורה בטקסט התשובה."""
     
-    # 1. החלפת קישורי URL
-    formatted_answer = URL_PATTERN.sub(replace_url, answer_text)
+    # 1. החלפת קישורי URL (הכי ספציפי)
+    formatted_answer = URL_PATTERN.sub(replace_link_url, answer_text)
     
-    # 2. החלפת קישורי Email (בטקסט שנותר)
-    formatted_answer = EMAIL_PATTERN.sub(replace_email, formatted_answer)
+    # 2. החלפת קישורי Email עם קולון
+    formatted_answer = EMAIL_PATTERN.sub(replace_link_email, formatted_answer)
     
-    # 3. טיפול במעברי שורה: החלפת \n ב-<br> כדי לכפות מעבר שורה ב-HTML/Markdown
-    final_content = formatted_answer.replace('\n', '<br>')
+    # 3. החלפת קישורי Email ללא קולון (צריך לפתור את בעיית האימייל הנוכחית)
+    formatted_answer = EMAIL_PATTERN_NOCONOL.sub(replace_link_email, formatted_answer)
+
+    # 4. 💡 התיקון למעברי שורה: החלפת \r\n (CRLF) ו-\n (LF) ל-<br>
+    final_content = formatted_answer.replace('\r\n', '<br>').replace('\n', '<br>')
     
     return final_content
 
@@ -339,6 +350,7 @@ with st.form("ask_form", clear_on_submit=False): # clear_on_submit=False כי א
     
     # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
     submitted = st.form_submit_button("שלח", on_click=handle_submit)
+
 
 
 
