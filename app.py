@@ -160,7 +160,8 @@ def parse_faq_new(text: str) -> List[FAQItem]:
         v_match = re.search(r"(?s)ניסוחים דומים\s*:\s*(.+?)(?:\nתשובה\s*:|\Z)", b)
 
         question = q_match.group(1).strip() if q_match else ""
-        answer = a_match.group(1).strip() if a_match else ""
+        answer = a_match.group(1) if a_match else "" # ללא .strip()
+        #answer = a_match.group(1).strip() if a_match else ""
 
         variants = []
         if v_match:
@@ -294,6 +295,7 @@ with st.form("ask_form", clear_on_submit=False): # clear_on_submit=False כי א
     
     # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
     submitted = st.form_submit_button("שלח", on_click=handle_submit)
+
 
 
 
