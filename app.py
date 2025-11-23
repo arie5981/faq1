@@ -183,10 +183,44 @@ for i, item in enumerate(faq_items):
     docs.append(Document(page_content=merged, metadata={"idx": i}))
 
 faq_store = FAISS.from_documents(docs, embeddings)
+# ============================================
+#   חיפוש FAQ – fuzzy + embeddings
+# ============================================
+# דרוש לייבא: import re
+# ודא ש-re מיובא בראש הקובץ.
 
-# ============================================
-#   חיפוש FAQ – fuzzy + embeddings
-# ============================================
+# הגדרת דפוסי Regex בתוך הפונקציה או מחוצה לה (נשמור אותם בפנים לנוחות)
+URL_PATTERN = re.compile(r'>>(.*?):\s*(https?://.+?)<<', re.DOTALL)
+EMAIL_PATTERN = re.compile(r'>>(.*?):\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})<<', re.DOTALL)
+
+def replace_url(match):
+    """מחליף דפוס >>טקסט: URL<< לפורמט Markdown [טקסט](URL)."""
+    description = match.group(1).strip()
+    url = match.group(2).strip()
+    return f"[{description}]({url})"
+
+def replace_email(match):
+    """מחליף דפוס >>טקסט: אימייל<< לפורמט Markdown [טקסט](mailto:אימייל)."""
+    description = match.group(1).strip()
+    email_address = match.group(2).strip()
+    # שימוש בקישור mailto: עבור כתובות אימייל
+    return f"[{description}](mailto:{email_address})"
+
+def process_answer_content(answer_text: str) -> str:
+    """מטפל בקישורים ובמעברי שורה בטקסט התשובה."""
+    
+    # 1. החלפת קישורי URL
+    formatted_answer = URL_PATTERN.sub(replace_url, answer_text)
+    
+    # 2. החלפת קישורי Email (בטקסט שנותר)
+    formatted_answer = EMAIL_PATTERN.sub(replace_email, formatted_answer)
+    
+    # 3. טיפול במעברי שורה: החלפת \n ב-<br> כדי לכפות מעבר שורה ב-HTML/Markdown
+    final_content = formatted_answer.replace('\n', '<br>')
+    
+    return final_content
+
+
 def search_faq(query: str) -> str:
     nq = normalize_he(query)
 
@@ -203,31 +237,12 @@ def search_faq(query: str) -> str:
 
     if best_score >= 60:
         item = faq_items[best_idx]
-        #==============================
-        answer_text = item.answer
         
-        # 💡 שלב הטיפול בקישורים
-        # חיפוש קישורים בפורמט >>טקסט: URL<<
-        link_pattern = re.compile(r'>>(.+?):\s*(https?://[^\s<]+)<<')
+        # 🌟 טיפול בתוכן התשובה
+        content = process_answer_content(item.answer)
         
-        def replace_link(match):
-            # match.group(1) הוא הטקסט התיאורי
-            # match.group(2) הוא ה-URL המלא
-            description = match.group(1).strip()
-            url = match.group(2).strip()
-            
-            # החלפת הפורמט בקישור Markdown קצר
-            return f"[{description}]({url})"
-    
-        # החלפת כל הקישורים בתוך התשובה
-        formatted_answer = link_pattern.sub(replace_link, answer_text)
-        
-        # ... ודא שגם מעברי שורה מטופלים (כמו בפתרון הקודם)
-        final_content = formatted_answer.replace('\n', '<br>')
-    
-        return f"{final_content}<br><br>מקור: faq<br>שאלה מזוהה: {item.question}"
-        #==============================
-        # return f"{item.answer}\n\nמקור: faq\nשאלה מזוהה: {item.question}"
+        # שימוש ב-<br> במקום \n מכיוון שהתוכן כבר עבר המרה
+        return f"{content}<br><br>מקור: faq<br>שאלה מזוהה: {item.question}"
 
     # --- fallback: embeddings ---
     hits = faq_store.similarity_search_with_score(query, k=3)
@@ -236,10 +251,14 @@ def search_faq(query: str) -> str:
     if best_dist < 1.1:
         idx = best_doc.metadata["idx"]
         item = faq_items[idx]
-        return f"{item.answer}\n\nמקור: faq\nשאלה מזוהה (סמנטי): {item.question}"
+        
+        # 🌟 טיפול בתוכן התשובה
+        content = process_answer_content(item.answer)
+
+        # שימוש ב-<br> במקום \n מכיוון שהתוכן כבר עבר המרה
+        return f"{content}<br><br>מקור: faq<br>שאלה מזוהה (סמנטי): {item.question}"
 
     return "לא נמצאה תשובה, נסה לנסח את השאלה מחדש."
-
 # ============================================
 #   ניהול שיחה כמו ChatGPT
 # ============================================
@@ -275,14 +294,15 @@ for msg in st.session_state.messages:
 </div>
 """, unsafe_allow_html=True)
     else:
-    # 💡 התיקון כאן: החלפת מעברי שורה ב-HTML <br>
-        # חשוב: יש להחליף את ה-\n ב-content לפני הכנסתו ל-f-string 
-        # 1. החלפת \n ל-<br> כדי שיעבוד בתוך ה-HTML של st.markdown
-        display_content = msg['content'].replace('\n', '<br>')
+        # **תיקון: הסרת החלפת \n ל-<br> מכיוון שזה קורה כבר ב-search_faq**
+        # 
+        # במקום: display_content = msg['content'].replace('\n', '<br>')
+        # נעשה:
+        display_content = msg['content'] # הטקסט מגיע כבר עם <br> מ-search_faq
         
         st.markdown(f"""
 <div class="assistant-text">
-<strong>תשובה:</strong> {display_content}
+<strong>תשובה:</strong> {display_content} 👈 **שימו לב: משתמשים ב-display_content**
 </div>
 """, unsafe_allow_html=True)
 
@@ -319,6 +339,7 @@ with st.form("ask_form", clear_on_submit=False): # clear_on_submit=False כי א
     
     # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
     submitted = st.form_submit_button("שלח", on_click=handle_submit)
+
 
 
 
