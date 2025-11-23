@@ -203,7 +203,31 @@ def search_faq(query: str) -> str:
 
     if best_score >= 60:
         item = faq_items[best_idx]
-        return f"{item.answer}\n\nמקור: faq\nשאלה מזוהה: {item.question}"
+        #==============================
+        answer_text = item.answer
+        
+        # 💡 שלב הטיפול בקישורים
+        # חיפוש קישורים בפורמט >>טקסט: URL<<
+        link_pattern = re.compile(r'>>(.+?):\s*(https?://[^\s<]+)<<')
+        
+        def replace_link(match):
+            # match.group(1) הוא הטקסט התיאורי
+            # match.group(2) הוא ה-URL המלא
+            description = match.group(1).strip()
+            url = match.group(2).strip()
+            
+            # החלפת הפורמט בקישור Markdown קצר
+            return f"[{description}]({url})"
+    
+        # החלפת כל הקישורים בתוך התשובה
+        formatted_answer = link_pattern.sub(replace_link, answer_text)
+        
+        # ... ודא שגם מעברי שורה מטופלים (כמו בפתרון הקודם)
+        final_content = formatted_answer.replace('\n', '<br>')
+    
+        return f"{final_content}<br><br>מקור: faq<br>שאלה מזוהה: {item.question}"
+        #==============================
+        # return f"{item.answer}\n\nמקור: faq\nשאלה מזוהה: {item.question}"
 
     # --- fallback: embeddings ---
     hits = faq_store.similarity_search_with_score(query, k=3)
@@ -295,6 +319,7 @@ with st.form("ask_form", clear_on_submit=False): # clear_on_submit=False כי א
     
     # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
     submitted = st.form_submit_button("שלח", on_click=handle_submit)
+
 
 
 
