@@ -287,31 +287,13 @@ if len(st.session_state.messages) == 0:
 
     st.markdown("## איך אפשר לעזור?")
     st.markdown("")
-# ============================================
-#   פונקציית Callback לטיפול בשליחת הטופס
-# ============================================
-def handle_submit():
-    # Streamlit מאתחל את כל רכיבי הטופס כערכי Session State לפי מפתח ("query_input")
-    if "query_input" in st.session_state and st.session_state.query_input:
-        query = st.session_state.query_input
-        
-        # 1. הוספת השאלה להיסטוריה
-        st.session_state.messages.append({"role": "user", "content": query})
-        
-        # 2. הפעלת מנוע ה־FAQ
-        # (שים לב: נשתמש ב-query ששמרנו, לא בערך המעודכן ב-session_state)
-        answer = search_faq(query)
-        
-        # 3. הוספת תשובה להיסטוריה
-        st.session_state.messages.append({"role": "assistant", "content": answer})
-        
-        # 4. ניקוי תיבת הקלט לאחר שליחה
-        st.session_state.query_input = "" # מאפס את שדה הקלט
-
-# תיבת השאלה בתחתית (Enter שולח, בלי כפתור)
+# ----------------------------------------------------
+# 💥 בלוק 1 (הועבר לכאן): תיבת הקלט החדשה
+# ----------------------------------------------------
+# 💡 כעת תיבת השאלה תופיע ראשונה לאחר כותרות הפתיחה
 st.markdown('<div class="question-box"></div>', unsafe_allow_html=True)
 
-with st.form("ask_form", clear_on_submit=False): # clear_on_submit=False כי אנו מנקים ידנית
+with st.form("ask_form", clear_on_submit=False): 
     # st.text_input עם מפתח (key) כדי שנוכל לגשת לערך שלו ב-session_state ב-callback
     query = st.text_input(" ", 
                           placeholder="שאל שאלה והקש Enter", 
@@ -319,8 +301,9 @@ with st.form("ask_form", clear_on_submit=False): # clear_on_submit=False כי א
     
     # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
     submitted = st.form_submit_button("שלח", on_click=handle_submit)
-#==============================================
-
+# ----------------------------------------------------
+# 💥 בלוק 2 (נותר במקומו): היסטוריית השיחה
+# ----------------------------------------------------
 # הצגת היסטוריית שיחה (שאלה = בועה אפורה, תשובה = טקסט לבן)
 for msg in st.session_state.messages:
     if msg["role"] == "user":
@@ -345,6 +328,29 @@ for msg in st.session_state.messages:
         #    זה מאלץ את Streamlit לפרש את ה-Markdown [טקסט](קישור) כקישור לחיץ.
         st.markdown(display_content, unsafe_allow_html=True)
 
+# ============================================
+#   פונקציית Callback לטיפול בשליחת הטופס
+# ============================================
+def handle_submit():
+    # Streamlit מאתחל את כל רכיבי הטופס כערכי Session State לפי מפתח ("query_input")
+    if "query_input" in st.session_state and st.session_state.query_input:
+        query = st.session_state.query_input
+        
+        # 1. הוספת השאלה להיסטוריה
+        st.session_state.messages.append({"role": "user", "content": query})
+        
+        # 2. הפעלת מנוע ה־FAQ
+        # (שים לב: נשתמש ב-query ששמרנו, לא בערך המעודכן ב-session_state)
+        answer = search_faq(query)
+        
+        # 3. הוספת תשובה להיסטוריה
+        st.session_state.messages.append({"role": "assistant", "content": answer})
+        
+        # 4. ניקוי תיבת הקלט לאחר שליחה
+        st.session_state.query_input = "" # מאפס את שדה הקלט
+
+
+#==============================================
 
 
 
