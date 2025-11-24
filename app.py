@@ -276,7 +276,6 @@ def handle_submit():
         # 4. ניקוי תיבת הקלט לאחר שליחה
         st.session_state.query_input = "" # מאפס את שדה הקלט
 
-
 # ============================================
 #   ניהול שיחה כמו ChatGPT
 # ============================================
@@ -304,7 +303,7 @@ if len(st.session_state.messages) == 0:
     st.markdown("")
 
 # ----------------------------------------------------
-# 💥 תיבת הקלט מופיעה כעת ראשונה (מוקמה לפני ההיסטוריה)
+# 💥 תיבת הקלט מופיעה ראשונה
 # ----------------------------------------------------
 st.markdown('<div class="question-box"></div>', unsafe_allow_html=True)
 
@@ -324,7 +323,8 @@ if len(st.session_state.messages) > 0:
     st.markdown("---") # קו מפריד
 
 # הצגת היסטוריית שיחה (שאלה = בועה אפורה, תשובה = טקסט לבן)
-for msg in st.session_state.messages:
+# 💥 שינוי קריטי: מעבר על הרשימה בסדר הפוך (messages[::-1])
+for msg in st.session_state.messages[::-1]: 
     if msg["role"] == "user":
         st.markdown(f"""
 <div class="user-bubble">
@@ -332,7 +332,7 @@ for msg in st.session_state.messages:
 </div>
 """, unsafe_allow_html=True)
     
-    # 💡 ה-else מוזח נכון
+    # ה-else מוזח נכון
     else: 
         display_content = msg['content'] 
 
