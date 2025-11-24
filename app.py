@@ -290,19 +290,15 @@ for msg in st.session_state.messages:
 <strong>שאלה:</strong> {msg['content']}
 </div>
 """, unsafe_allow_html=True)
-    else:
-        # **תיקון: הסרת החלפת \n ל-<br> מכיוון שזה קורה כבר ב-search_faq**
-        # 
-        # במקום: display_content = msg['content'].replace('\n', '<br>')
-        # נעשה:
-        display_content = msg['content'] # הטקסט מגיע כבר עם <br> מ-search_faq
-        
+else:
+        display_content = msg['content'] 
+
+        # 1. הצגת התווית "תשובה" ועיצוב כללי באמצעות HTML
         st.markdown(f"""
 <div class="assistant-text">
-<strong>תשובה:</strong> {display_content} 👈 **שימו לב: משתמשים ב-display_content**
+<strong>תשובה:</strong>
 </div>
 """, unsafe_allow_html=True)
-
 # ------------------------
 # ============================================
 #   פונקציית Callback לטיפול בשליחת הטופס
@@ -336,6 +332,7 @@ with st.form("ask_form", clear_on_submit=False): # clear_on_submit=False כי א
     
     # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
     submitted = st.form_submit_button("שלח", on_click=handle_submit)
+
 
 
 
