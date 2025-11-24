@@ -303,7 +303,7 @@ if len(st.session_state.messages) == 0:
     st.markdown("")
 
 # ----------------------------------------------------
-# 💥 תיבת הקלט מופיעה ראשונה
+# 💥 תיבת הקלט מופיעה כעת ראשונה
 # ----------------------------------------------------
 st.markdown('<div class="question-box"></div>', unsafe_allow_html=True)
 
@@ -322,19 +322,29 @@ with st.form("ask_form", clear_on_submit=False):
 if len(st.session_state.messages) > 0:
     st.markdown("---") # קו מפריד
 
-# הצגת היסטוריית שיחה (שאלה = בועה אפורה, תשובה = טקסט לבן)
-# 💥 שינוי קריטי: מעבר על הרשימה בסדר הפוך (messages[::-1])
-for msg in st.session_state.messages[::-1]: 
-    if msg["role"] == "user":
-        st.markdown(f"""
+# =======================================================================
+# 💥 התיקון הקריטי: הצגת היסטוריית שיחה בזוגות בסדר הפוך (Q -> A)
+# =======================================================================
+
+# איתור האינדקסים של כל הודעות ה"user" (שאלה), שהן תמיד האיבר הראשון בזוג
+user_indices = [i for i, msg in enumerate(st.session_state.messages) if msg["role"] == "user"]
+
+# מעבר על האינדקסים בסדר הפוך (האינטראקציה האחרונה קודם)
+for user_idx in user_indices[::-1]:
+    
+    # 1. הצגת הודעת השאלה
+    user_msg = st.session_state.messages[user_idx]
+    st.markdown(f"""
 <div class="user-bubble">
-<strong>שאלה:</strong> {msg['content']}
+<strong>שאלה:</strong> {user_msg['content']}
 </div>
 """, unsafe_allow_html=True)
     
-    # ה-else מוזח נכון
-    else: 
-        display_content = msg['content'] 
+    # 2. הצגת הודעת התשובה (אם קיימת - כלומר, אנו לא באמצע שליחת שאלה)
+    assistant_idx = user_idx + 1
+    if assistant_idx < len(st.session_state.messages):
+        assistant_msg = st.session_state.messages[assistant_idx]
+        display_content = assistant_msg['content'] 
 
         # הצגת התווית "תשובה:" ועיצוב כללי באמצעות HTML
         st.markdown(f"""
@@ -345,3 +355,5 @@ for msg in st.session_state.messages[::-1]:
         
         # הצגת התוכן (כולל ה-Markdown) ב-st.markdown נפרד
         st.markdown(display_content, unsafe_allow_html=True)
+
+# =======================================================================
