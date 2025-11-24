@@ -77,10 +77,10 @@ html, body, [class*="css"]  {
 
 /* טקסט תשובה */
 .assistant-text {
-    margin: 0.2rem 0 0 0; /* שינוי מ-0.8rem ל-0 כדי להפחית מרווח תחתון */
+    margin: 0.2rem 0 0 0; /* 💥 תיקון: צמצום המרווח התחתון ל-0 */
 }
 
-/* תיבת הקלט בתחתית */
+/* תיבת הקלט */
 .question-box {
     position: relative;
     margin-top: 1rem;
@@ -129,7 +129,7 @@ def read_txt_utf8(path: str) -> str:
 raw_faq = read_txt_utf8(FAQ_PATH)
 
 # ============================================
-#   עיבוד ה-FAQ (כמו בקוד שלך)
+#   עיבוד ה-FAQ
 # ============================================
 def normalize_he(s: str) -> str:
     if not s:
@@ -149,7 +149,7 @@ class FAQItem:
 def parse_faq_new(text: str) -> List[FAQItem]:
     items = []
     
-    # הגדרת blocks חייבת להיות ברמת ההזחה הזו (כדי להימנע מ-NameError)
+    # הגדרת blocks חייבת להיות ברמת ההזחה הזו
     blocks = re.split(r"(?=שאלה\s*:)", text) 
 
     for b in blocks:
@@ -202,19 +202,12 @@ for i, item in enumerate(faq_items):
 
 faq_store = FAISS.from_documents(docs, embeddings)
 # ============================================
-#   חיפוש FAQ – fuzzy + embeddings
+#   חיפוש FAQ – fuzzy + embeddings
 # ============================================
-# דרוש לייבא: import re
-# ודא ש-re מיובא בראש הקובץ.
-
 
 def process_answer_content(answer_text: str) -> str:
     """כעת, הפונקציה רק מחזירה את הטקסט, כיוון שקישורי Markdown כבר מוטמעים ב-faq.txt
     והטיפול במעברי שורה מבוצע ב-parse_faq_new."""
-    
-    # אין צורך בהחלפות Regex נוספות.
-    # אם מעברי השורה נפתרו ב-parse_faq_new, אין צורך גם בהחלפת \n ל-<br>.
-    
     return answer_text
 
 
@@ -238,7 +231,7 @@ def search_faq(query: str) -> str:
         # 🌟 טיפול בתוכן התשובה
         content = process_answer_content(item.answer)
         
-        # 💥 התיקון: החלפת כל מעבר שורה בודד ב-Markdown (ב-content יש \n יחיד מ-parse_faq_new)
+        # 💥 התיקון: החלפת כל מעבר שורה בודד ב-Markdown
         final_content = content.replace('\n', '\n\n')
 
         # החזרת הפלט עם מעברי השורה כפולים
@@ -255,84 +248,16 @@ def search_faq(query: str) -> str:
         # 🌟 טיפול בתוכן התשובה
         content = process_answer_content(item.answer)
 
-        # 💥 התיקון: החלפת כל מעבר שורה בודד ב-Markdown (ב-content יש \n יחיד מ-parse_faq_new)
+        # 💥 התיקון: החלפת כל מעבר שורה בודד ב-Markdown
         final_content = content.replace('\n', '\n\n')
 
         # החזרת הפלט עם מעברי השורה כפולים
         return f"{final_content}\n\nמקור: faq\n\nשאלה מזוהה (סמנטי): {item.question}"
 
     return "לא נמצאה תשובה, נסה לנסח את השאלה מחדש."
+
 # ============================================
-#   ניהול שיחה כמו ChatGPT
-# ============================================
-if "messages" not in st.session_state:
-    # כל הודעה היא מילון: {"role": "user"/"assistant", "content": "..."}
-    st.session_state.messages = []
-
-# שאלות נפוצות למסך הראשון
-POPULAR_QUESTIONS = [
-    "איך מוסיפים משתמש חדש באתר מייצגים.",
-    "מקבל הודעה שאחד או יותר מנתוני ההזדהות שגויים.",
-    "איך יוצרים קיצור דרך לאתר מייצגים על שולחן העבודה.",
-    "רוצה לקבל את הקוד החד פעמי לדואר אלקטרוני.",
-]
-
-st.markdown("")
-
-# אם עדיין אין שיחה – מסך פתיחה עם שאלות נפוצות
-if len(st.session_state.messages) == 0:
-    st.markdown("### שאלות נפוצות:")
-    for i, q in enumerate(POPULAR_QUESTIONS, start=1):
-        st.markdown(f"{i}. {q}")
-
-    st.markdown("## איך אפשר לעזור?")
-    st.markdown("")
-
-# ----------------------------------------------------
-# 💥 הבלוק המעודכן: תיבת הקלט מופיעה כעת ראשונה
-# ----------------------------------------------------
-st.markdown('<div class="question-box"></div>', unsafe_allow_html=True)
-
-with st.form("ask_form", clear_on_submit=False): 
-    # st.text_input עם מפתח (key) כדי שנוכל לגשת לערך שלו ב-session_state ב-callback
-    query = st.text_input(" ", 
-                          placeholder="שאל שאלה והקש Enter", 
-                          key="query_input")
-    
-    # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
-    submitted = st.form_submit_button("שלח", on_click=handle_submit)
-
-# ----------------------------------------------------
-# 💥 מפריד ויזואלי בין טופס הקלט להיסטוריה
-# ----------------------------------------------------
-if len(st.session_state.messages) > 0:
-    st.markdown("---") # קו מפריד
-
-# הצגת היסטוריית שיחה (שאלה = בועה אפורה, תשובה = טקסט לבן)
-for msg in st.session_state.messages:
-    if msg["role"] == "user":
-        st.markdown(f"""
-<div class="user-bubble">
-<strong>שאלה:</strong> {msg['content']}
-</div>
-""", unsafe_allow_html=True)
-    
-    # 💡 ה-else מוזח נכון
-    else: 
-        display_content = msg['content'] 
-
-        # הצגת התווית "תשובה:" ועיצוב כללי באמצעות HTML
-        st.markdown(f"""
-<div class="assistant-text">
-<strong>תשובה:</strong>
-</div>
-""", unsafe_allow_html=True)
-        
-        # הצגת התוכן (כולל ה-Markdown) ב-st.markdown נפרד
-        st.markdown(display_content, unsafe_allow_html=True)
-# ============================================
-# ============================================
-#   פונקציית Callback לטיפול בשליחת הטופס
+#   פונקציית Callback לטיפול בשליחת הטופס (נותר בסוף הקובץ)
 # ============================================
 def handle_submit():
     # Streamlit מאתחל את כל רכיבי הטופס כערכי Session State לפי מפתח ("query_input")
@@ -343,7 +268,6 @@ def handle_submit():
         st.session_state.messages.append({"role": "user", "content": query})
         
         # 2. הפעלת מנוע ה־FAQ
-        # (שים לב: נשתמש ב-query ששמרנו, לא בערך המעודכן ב-session_state)
         answer = search_faq(query)
         
         # 3. הוספת תשובה להיסטוריה
@@ -353,17 +277,71 @@ def handle_submit():
         st.session_state.query_input = "" # מאפס את שדה הקלט
 
 
-#==============================================
+# ============================================
+#   ניהול שיחה כמו ChatGPT
+# ============================================
+if "messages" not in st.session_state:
+    # כל הודעה היא מילון: {"role": "user"/"assistant", "content": "..."}
+    st.session_state.messages = []
 
+# שאלות נפוצות למסך הראשון
+POPULAR_QUESTIONS = [
+    "איך מוסיפים משתמש חדש באתר מייצגים.",
+    "מקבל הודעה שאחד או יותר מנתוני ההזדהות שגויים.",
+    "איך יוצרים קיצור דרך לאתר מייצגים על שולחן העבודה.",
+    "רוצה לקבל את הקוד החד פעמי לדואר אלקטרוני.",
+]
 
+st.markdown("")
 
+# אם עדיין אין שיחה – מסך פתיחה עם שאלות נפוצות
+if len(st.session_state.messages) == 0:
+    st.markdown("### שאלות נפוצות:")
+    for i, q in enumerate(POPULAR_QUESTIONS, start=1):
+        st.markdown(f"{i}. {q}")
 
+    st.markdown("## איך אפשר לעזור?")
+    st.markdown("")
 
+# ----------------------------------------------------
+# 💥 תיבת הקלט מופיעה כעת ראשונה (מוקמה לפני ההיסטוריה)
+# ----------------------------------------------------
+st.markdown('<div class="question-box"></div>', unsafe_allow_html=True)
 
+with st.form("ask_form", clear_on_submit=False): 
+    # st.text_input עם מפתח (key) כדי שנוכל לגשת לערך שלו ב-session_state ב-callback
+    query = st.text_input(" ", 
+                          placeholder="שאל שאלה והקש Enter", 
+                          key="query_input")
+    
+    # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
+    submitted = st.form_submit_button("שלח", on_click=handle_submit)
 
+# ----------------------------------------------------
+# 💥 מפריד ויזואלי בין טופס הקלט להיסטוריה
+# ----------------------------------------------------
+if len(st.session_state.messages) > 0:
+    st.markdown("---") # קו מפריד
 
+# הצגת היסטוריית שיחה (שאלה = בועה אפורה, תשובה = טקסט לבן)
+for msg in st.session_state.messages:
+    if msg["role"] == "user":
+        st.markdown(f"""
+<div class="user-bubble">
+<strong>שאלה:</strong> {msg['content']}
+</div>
+""", unsafe_allow_html=True)
+    
+    # 💡 ה-else מוזח נכון
+    else: 
+        display_content = msg['content'] 
 
-
-
-
-
+        # הצגת התווית "תשובה:" ועיצוב כללי באמצעות HTML
+        st.markdown(f"""
+<div class="assistant-text">
+<strong>תשובה:</strong>
+</div>
+""", unsafe_allow_html=True)
+        
+        # הצגת התוכן (כולל ה-Markdown) ב-st.markdown נפרד
+        st.markdown(display_content, unsafe_allow_html=True)
