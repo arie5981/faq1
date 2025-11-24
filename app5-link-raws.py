@@ -287,30 +287,6 @@ if len(st.session_state.messages) == 0:
 
     st.markdown("## איך אפשר לעזור?")
     st.markdown("")
-
-# הצגת היסטוריית שיחה (שאלה = בועה אפורה, תשובה = טקסט לבן)
-for msg in st.session_state.messages:
-    if msg["role"] == "user":
-        st.markdown(f"""
-<div class="user-bubble">
-<strong>שאלה:</strong> {msg['content']}
-</div>
-""", unsafe_allow_html=True)
-    
-    # 💡 תיקון: ה-else מוזח נכון כדי לטפל בתשובת ה"assistant"
-    else: 
-        display_content = msg['content'] 
-
-        # 1. הצגת התווית "תשובה:" ועיצוב כללי באמצעות HTML
-        st.markdown(f"""
-<div class="assistant-text">
-<strong>תשובה:</strong>
-</div>
-""", unsafe_allow_html=True)
-        
-        # 2. 💥 התיקון הקריטי לקישורים: הצגת התוכן ב-st.markdown נפרד
-        #    זה מאלץ את Streamlit לפרש את ה-Markdown [טקסט](קישור) כקישור לחיץ.
-        st.markdown(display_content, unsafe_allow_html=True)
 # ============================================
 #   פונקציית Callback לטיפול בשליחת הטופס
 # ============================================
@@ -343,7 +319,31 @@ with st.form("ask_form", clear_on_submit=False): # clear_on_submit=False כי א
     
     # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
     submitted = st.form_submit_button("שלח", on_click=handle_submit)
+#==============================================
 
+# הצגת היסטוריית שיחה (שאלה = בועה אפורה, תשובה = טקסט לבן)
+for msg in st.session_state.messages:
+    if msg["role"] == "user":
+        st.markdown(f"""
+<div class="user-bubble">
+<strong>שאלה:</strong> {msg['content']}
+</div>
+""", unsafe_allow_html=True)
+    
+    # 💡 תיקון: ה-else מוזח נכון כדי לטפל בתשובת ה"assistant"
+    else: 
+        display_content = msg['content'] 
+
+        # 1. הצגת התווית "תשובה:" ועיצוב כללי באמצעות HTML
+        st.markdown(f"""
+<div class="assistant-text">
+<strong>תשובה:</strong>
+</div>
+""", unsafe_allow_html=True)
+        
+        # 2. 💥 התיקון הקריטי לקישורים: הצגת התוכן ב-st.markdown נפרד
+        #    זה מאלץ את Streamlit לפרש את ה-Markdown [טקסט](קישור) כקישור לחיץ.
+        st.markdown(display_content, unsafe_allow_html=True)
 
 
 
