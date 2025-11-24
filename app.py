@@ -238,8 +238,11 @@ def search_faq(query: str) -> str:
         # 🌟 טיפול בתוכן התשובה
         content = process_answer_content(item.answer)
         
-        # שימוש ב-<br> במקום \n מכיוון שהתוכן כבר עבר המרה
-        return f"{content}<br><br>מקור: faq<br>שאלה מזוהה: {item.question}"
+        # 💥 התיקון: החלפת כל מעבר שורה בודד ב-Markdown (ב-content יש \n יחיד מ-parse_faq_new)
+        final_content = content.replace('\n', '\n\n')
+
+        # החזרת הפלט עם מעברי השורה כפולים
+        return f"{final_content}\n\nמקור: faq\n\nשאלה מזוהה: {item.question}"
 
     # --- fallback: embeddings ---
     hits = faq_store.similarity_search_with_score(query, k=3)
@@ -252,8 +255,11 @@ def search_faq(query: str) -> str:
         # 🌟 טיפול בתוכן התשובה
         content = process_answer_content(item.answer)
 
-        # שימוש ב-<br> במקום \n מכיוון שהתוכן כבר עבר המרה
-        return f"{content}<br><br>מקור: faq<br>שאלה מזוהה (סמנטי): {item.question}"
+        # 💥 התיקון: החלפת כל מעבר שורה בודד ב-Markdown (ב-content יש \n יחיד מ-parse_faq_new)
+        final_content = content.replace('\n', '\n\n')
+
+        # החזרת הפלט עם מעברי השורה כפולים
+        return f"{final_content}\n\nמקור: faq\n\nשאלה מזוהה (סמנטי): {item.question}"
 
     return "לא נמצאה תשובה, נסה לנסח את השאלה מחדש."
 # ============================================
@@ -337,6 +343,7 @@ with st.form("ask_form", clear_on_submit=False): # clear_on_submit=False כי א
     
     # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
     submitted = st.form_submit_button("שלח", on_click=handle_submit)
+
 
 
 
