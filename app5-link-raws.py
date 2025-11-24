@@ -77,7 +77,7 @@ html, body, [class*="css"]  {
 
 /* טקסט תשובה */
 .assistant-text {
-    margin: 0.2rem 0 0.8rem 0;
+    margin: 0.2rem 0 0 0; /* שינוי מ-0.8rem ל-0 כדי להפחית מרווח תחתון */
 }
 
 /* תיבת הקלט בתחתית */
@@ -263,71 +263,74 @@ def search_faq(query: str) -> str:
 
     return "לא נמצאה תשובה, נסה לנסח את השאלה מחדש."
 # ============================================
-#   ניהול שיחה כמו ChatGPT
+#   ניהול שיחה כמו ChatGPT
 # ============================================
 if "messages" not in st.session_state:
-    # כל הודעה היא מילון: {"role": "user"/"assistant", "content": "..."}
-    st.session_state.messages = []
+    # כל הודעה היא מילון: {"role": "user"/"assistant", "content": "..."}
+    st.session_state.messages = []
 
 # שאלות נפוצות למסך הראשון
 POPULAR_QUESTIONS = [
-    "איך מוסיפים משתמש חדש באתר מייצגים.",
-    "מקבל הודעה שאחד או יותר מנתוני ההזדהות שגויים.",
-    "איך יוצרים קיצור דרך לאתר מייצגים על שולחן העבודה.",
-    "רוצה לקבל את הקוד החד פעמי לדואר אלקטרוני.",
+    "איך מוסיפים משתמש חדש באתר מייצגים.",
+    "מקבל הודעה שאחד או יותר מנתוני ההזדהות שגויים.",
+    "איך יוצרים קיצור דרך לאתר מייצגים על שולחן העבודה.",
+    "רוצה לקבל את הקוד החד פעמי לדואר אלקטרוני.",
 ]
 
 st.markdown("")
 
 # אם עדיין אין שיחה – מסך פתיחה עם שאלות נפוצות
 if len(st.session_state.messages) == 0:
-    st.markdown("### שאלות נפוצות:")
-    for i, q in enumerate(POPULAR_QUESTIONS, start=1):
-        st.markdown(f"{i}. {q}")
+    st.markdown("### שאלות נפוצות:")
+    for i, q in enumerate(POPULAR_QUESTIONS, start=1):
+        st.markdown(f"{i}. {q}")
 
-    st.markdown("## איך אפשר לעזור?")
-    st.markdown("")
+    st.markdown("## איך אפשר לעזור?")
+    st.markdown("")
+
 # ----------------------------------------------------
-# 💥 בלוק 1 (הועבר לכאן): תיבת הקלט החדשה
+# 💥 הבלוק המעודכן: תיבת הקלט מופיעה כעת ראשונה
 # ----------------------------------------------------
-# 💡 כעת תיבת השאלה תופיע ראשונה לאחר כותרות הפתיחה
 st.markdown('<div class="question-box"></div>', unsafe_allow_html=True)
 
-with st.form("ask_form", clear_on_submit=False): 
-    # st.text_input עם מפתח (key) כדי שנוכל לגשת לערך שלו ב-session_state ב-callback
-    query = st.text_input(" ", 
-                          placeholder="שאל שאלה והקש Enter", 
-                          key="query_input")
-    
-    # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
-    submitted = st.form_submit_button("שלח", on_click=handle_submit)
+with st.form("ask_form", clear_on_submit=False): 
+    # st.text_input עם מפתח (key) כדי שנוכל לגשת לערך שלו ב-session_state ב-callback
+    query = st.text_input(" ", 
+                          placeholder="שאל שאלה והקש Enter", 
+                          key="query_input")
+    
+    # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
+    submitted = st.form_submit_button("שלח", on_click=handle_submit)
+
 # ----------------------------------------------------
-# 💥 בלוק 2 (נותר במקומו): היסטוריית השיחה
+# 💥 מפריד ויזואלי בין טופס הקלט להיסטוריה
 # ----------------------------------------------------
+if len(st.session_state.messages) > 0:
+    st.markdown("---") # קו מפריד
+
 # הצגת היסטוריית שיחה (שאלה = בועה אפורה, תשובה = טקסט לבן)
 for msg in st.session_state.messages:
-    if msg["role"] == "user":
-        st.markdown(f"""
+    if msg["role"] == "user":
+        st.markdown(f"""
 <div class="user-bubble">
 <strong>שאלה:</strong> {msg['content']}
 </div>
 """, unsafe_allow_html=True)
-    
-    # 💡 תיקון: ה-else מוזח נכון כדי לטפל בתשובת ה"assistant"
-    else: 
-        display_content = msg['content'] 
+    
+    # 💡 ה-else מוזח נכון
+    else: 
+        display_content = msg['content'] 
 
-        # 1. הצגת התווית "תשובה:" ועיצוב כללי באמצעות HTML
-        st.markdown(f"""
+        # הצגת התווית "תשובה:" ועיצוב כללי באמצעות HTML
+        st.markdown(f"""
 <div class="assistant-text">
 <strong>תשובה:</strong>
 </div>
 """, unsafe_allow_html=True)
-        
-        # 2. 💥 התיקון הקריטי לקישורים: הצגת התוכן ב-st.markdown נפרד
-        #    זה מאלץ את Streamlit לפרש את ה-Markdown [טקסט](קישור) כקישור לחיץ.
-        st.markdown(display_content, unsafe_allow_html=True)
-
+        
+        # הצגת התוכן (כולל ה-Markdown) ב-st.markdown נפרד
+        st.markdown(display_content, unsafe_allow_html=True)
+# ============================================
 # ============================================
 #   פונקציית Callback לטיפול בשליחת הטופס
 # ============================================
