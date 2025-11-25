@@ -89,11 +89,10 @@ html, body, [class*="css"]  {
     border-top: 1px solid #333;
 }
 
-/* 💥 הסתרת כפתור "שלח" של הטופס – שולחים עם Enter */
-/* 💡 הכלל הגורף שהסתיר את כל השאלות הוסר. נסתיר רק את ה-submit button בתוך הטופס */
-/* Streamlit נותן לטופס testid="stForm" */
+/* הסתרת כפתור "שלח" של הטופס */
+/* נשתמש ב-data-testid כדי למקד את ההסתרה רק לכפתור השליחה בתוך הטופס */
 div[data-testid="stForm"] div.stButton button {
-    visibility: hidden; /* הסתרה עדינה יותר מ-display:none כדי לא לשבור את הפריסה */
+    visibility: hidden; 
     width: 0.1px;
     padding: 0;
     margin: 0;
@@ -101,7 +100,7 @@ div[data-testid="stForm"] div.stButton button {
 }
 
 
-/* 💥 CSS נוסף: עיצוב כפתורי השאלות כקישורים */
+/* CSS נוסף: עיצוב כפתורי השאלות כקישורים */
 /* הכפתורים של השאלות מחוץ לטופס ייראו כך: */
 div.stButton button { 
     text-align: right !important;
@@ -150,8 +149,10 @@ def read_txt_utf8(path: str) -> str:
         return f.read()
 
 try:
+    # 💡 קורא את קובץ faq.txt שצריך להיות באותה תיקייה
     raw_faq = read_txt_utf8(FAQ_PATH)
 except FileNotFoundError:
+    # טיפול בשגיאה למקרה שהקובץ חסר
     st.error(f"❌ קובץ FAQ לא נמצא בנתיב: {FAQ_PATH}. ודא שהקובץ נמצא בתיקייה הנכונה.")
     st.stop()
 
@@ -342,7 +343,96 @@ st.markdown("")
 if len(st.session_state.messages) == 0:
     st.markdown("### שאלות נפוצות:")
     
-    # 💥 הוספת הכפתורים במקום st.markdown
     for i, q in enumerate(POPULAR_QUESTIONS, start=1):
+        # 💥 תיקון: שימוש במרכאות משולשות (f"""...""") למניעת שגיאת תחימה
         st.button(
-            f"{q} **<לתש
+            f"""{q} **<לתשובה לחץ כאן>**""", 
+            key=f"popular_q_{i}", 
+            on_click=handle_submit, 
+            args=(q,)
+        )
+
+    st.markdown("## איך אפשר לעזור?")
+    st.markdown("")
+
+# ----------------------------------------------------
+# 💥 תיבת הקלט מופיעה כעת ראשונה
+# ----------------------------------------------------
+st.markdown('<div class="question-box"></div>', unsafe_allow_html=True)
+
+with st.form("ask_form", clear_on_submit=False): 
+    query = st.text_input(" ", 
+                          placeholder="שאל שאלה והקש Enter", 
+                          key="query_input")
+    
+    # הלחצן "שלח" מוסתר על ידי ה-CSS למעלה
+    submitted = st.form_submit_button("שלח", on_click=handle_submit)
+
+# ----------------------------------------------------
+# 💥 מפריד ויזואלי בין טופס הקלט להיסטוריה
+# ----------------------------------------------------
+if len(st.session_state.messages) > 0:
+    st.markdown("---") 
+
+# =======================================================================
+# 💥 הצגת היסטוריית שיחה בזוגות בסדר הפוך (Q -> A) + שאלות קשורות ככפתורים
+# =======================================================================
+
+user_indices = [i for i, msg in enumerate(st.session_state.messages) if msg["role"] == "user"]
+
+for user_idx in user_indices[::-1]:
+    
+    # 1. הצגת הודעת השאלה
+    user_msg = st.session_state.messages[user_idx]
+    st.markdown(f"""
+<div class="user-bubble">
+<strong>שאלה:</strong> {user_msg['content']}
+</div>
+""", unsafe_allow_html=True)
+    
+    # 2. הצגת הודעת התשובה (אם קיימת)
+    assistant_idx = user_idx + 1
+    if assistant_idx < len(st.session_state.messages):
+        assistant_msg = st.session_state.messages[assistant_idx]
+        raw_display_content = assistant_msg['content'] 
+        
+        # 💥 חילוץ שאלות קשורות מתוך התוכן
+        similar_questions = []
+        sq_match = re.search(r"---SIMILAR_QUESTIONS---(.*)", raw_display_content)
+        
+        if sq_match:
+            try:
+                sq_json_str = sq_match.group(1).strip()
+                similar_questions = json.loads(sq_json_str)
+                # הסרת ה-JSON מתוכן התצוגה הראשי
+                display_content = raw_display_content.replace(f"\n\n---SIMILAR_QUESTIONS---{sq_json_str}", "").strip()
+            except json.JSONDecodeError:
+                display_content = raw_display_content
+        else:
+            display_content = raw_display_content
+            
+        # הצגת התווית "תשובה:" ועיצוב כללי באמצעות HTML
+        st.markdown(f"""
+<div class="assistant-text">
+<strong>תשובה:</strong>
+</div>
+""", unsafe_allow_html=True)
+        
+        # הצגת התוכן (כולל ה-Markdown) ב-st.markdown נפרד
+        st.markdown(display_content, unsafe_allow_html=True)
+
+        # 💥 הצגת השאלות הקשורות ככפתורים
+        if similar_questions:
+            st.markdown("---") # מפריד
+            st.markdown("#### שאלות קשורות:")
+            
+            base_key = f"similar_q_{user_idx}" 
+            
+            for i, sq in enumerate(similar_questions):
+                # 💥 תיקון: שימוש במרכאות משולשות (f"""...""") למניעת שגיאת תחימה
+                st.button(
+                    f"""{sq} **<לתשובה לחץ כאן>**""", 
+                    key=f"{base_key}_{i}", 
+                    on_click=handle_submit, 
+                    args=(sq,)
+                )
