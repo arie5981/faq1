@@ -8,8 +8,8 @@ import os
 import re
 import unicodedata
 from dataclasses import dataclass
-from typing import List
-from rapidfuzz import fuzz
+from typing import List, Optional # 💥 נוסף Optional מ-faq7.py
+from rapidfuzz import fuzz, process # 💥 נוסף process מ-faq7.py
 
 import openai
 from langchain_openai import OpenAIEmbeddings
@@ -129,7 +129,7 @@ def read_txt_utf8(path: str) -> str:
 raw_faq = read_txt_utf8(FAQ_PATH)
 
 # ============================================
-#   עיבוד ה-FAQ
+#   עיבוד ה-FAQ (לוגיקה משופרת מ-faq7.py)
 # ============================================
 def normalize_he(s: str) -> str:
     if not s:
@@ -145,6 +145,9 @@ class FAQItem:
     question: str
     variants: List[str]
     answer: str
+    # 💥 מ-faq7.py: הוספת שדות אופציונליים
+    instruction: Optional[str] = None
+    contact_details: Optional[dict] = None
 
 def parse_faq_new(text: str) -> List[FAQItem]:
     items = []
@@ -158,35 +161,29 @@ def parse_faq_new(text: str) -> List[FAQItem]:
             continue
 
         q_match = re.search(r"שאלה\s*:\s*(.+)", b)
-        # ודא שה-Regex כולל את הדגל (?s) כדי לתמוך במעברי שורה בתוך התשובה
-        a_match = re.search(r"(?s)תשובה\s*:\s*(.+?)(?:\nהוראה\s*:|\Z)", b)
         v_match = re.search(r"(?s)ניסוחים דומים\s*:\s*(.+?)(?:\nתשובה\s*:|\Z)", b)
+        a_match = re.search(r"(?s)תשובה\s*:\s*(.+?)(?:\nהוראה\s*:|\Z)", b)
+        i_match = re.search(r"(?s)הוראה\s*:\s*(.+?)(?:\n>>|\Z)", b)
+        c_match = re.findall(r">>([^:]+?)\s*:\s*([^<]+?)<<", b)
 
         question = q_match.group(1).strip() if q_match else ""
         
-        # 💡 התיקון למעברי שורה: עיבוד שורה-אחרי-שורה
         answer = ""
         if a_match:
             raw_answer_content = a_match.group(1)
-            
-            # 1. פיצול לכל השורות בבלוק התשובה (מטפל ב-\n וב-\r\n)
             lines = raw_answer_content.splitlines()
-            
-            # 2. ניקוי רווחים לבנים (אינדנטציה, טאבים) מכל שורה בנפרד
             cleaned_lines = [line.strip() for line in lines]
+            answer = '\n'.join(cleaned_lines).strip()
             
-            # 3. חיבור מחדש באמצעות תו \n סטנדרטי
-            answer = '\n'.join(cleaned_lines)
-            
-            # 4. ניקוי רווחים/מעברי שורה חיצוניים מיותרים
-            answer = answer.strip() 
-
         variants = []
         if v_match:
             raw = v_match.group(1)
             variants = [s.strip(" -\t") for s in raw.split("\n") if s.strip()]
 
-        items.append(FAQItem(question, variants, answer))
+        instruction = i_match.group(1).strip() if i_match else None
+        contact_details = {k.strip(): v.strip() for k, v in c_match} if c_match else None
+        
+        items.append(FAQItem(question, variants, answer, instruction, contact_details))
 
     return items
 
@@ -202,13 +199,30 @@ for i, item in enumerate(faq_items):
 
 faq_store = FAISS.from_documents(docs, embeddings)
 # ============================================
-#   חיפוש FAQ – fuzzy + embeddings
+#   חיפוש FAQ – fuzzy + embeddings (לוגיקה משופרת מ-faq7.py)
 # ============================================
 
-def process_answer_content(answer_text: str) -> str:
-    """כעת, הפונקציה רק מחזירה את הטקסט, כיוון שקישורי Markdown כבר מוטמעים ב-faq.txt
-    והטיפול במעברי שורה מבוצע ב-parse_faq_new."""
-    return answer_text
+# 💥 פונקציית העיבוד הורחבה לטפל בהוראות וקישורים
+def process_answer_content(item: FAQItem) -> str:
+    answer_text = item.answer.strip()
+    
+    if item.instruction and item.contact_details:
+        instruction = item.instruction
+        contact_details = item.contact_details
+        
+        # החלפת מילות מפתח בקישורי Markdown (כמו ב-faq7.py)
+        for key, value in contact_details.items():
+            # [שם הקישור](כתובת הקישור/מייל)
+            markdown_link = f"[{key}]({value})"
+            
+            # החלף את הטקסט המופיע בהוראה
+            instruction = instruction.replace(f"[{key}]", markdown_link)
+        
+        answer_text += f"\n\n**הערות והוראות:** {instruction}"
+
+    # 💥 הוספת \n\n בין פסקאות
+    final_content = answer_text.replace('\n', '\n\n')
+    return final_content
 
 
 def search_faq(query: str) -> str:
@@ -225,34 +239,53 @@ def search_faq(query: str) -> str:
     scored.sort(reverse=True, key=lambda x: x[0])
     best_score, best_idx, _ = scored[0]
 
-    if best_score >= 60:
+    # קריטריון חיפוש פאזי מחמיר יותר
+    if best_score >= 80:
         item = faq_items[best_idx]
         
         # 🌟 טיפול בתוכן התשובה
-        content = process_answer_content(item.answer)
+        final_content = process_answer_content(item)
         
-        # 💥 התיקון: החלפת כל מעבר שורה בודד ב-Markdown
-        final_content = content.replace('\n', '\n\n')
-
         # החזרת הפלט עם מעברי השורה כפולים
         return f"{final_content}\n\nמקור: faq\n\nשאלה מזוהה: {item.question}"
 
-    # --- fallback: embeddings ---
-    hits = faq_store.similarity_search_with_score(query, k=3)
-    best_doc, best_dist = hits[0]
-
-    if best_dist < 1.1:
-        idx = best_doc.metadata["idx"]
+    # --- fallback: embeddings (עם שיפור ניקוד) ---
+    hits = faq_store.similarity_search_with_score(query, k=5)
+    
+    # 💥 מ-faq7.py: בונוס ניקוד לדימיון פאזי
+    boosted_hits = []
+    for doc, score in hits:
+        idx = doc.metadata["idx"]
         item = faq_items[idx]
+        # חישוב דימיון פאזי בין השאלה הנשאלת לשאלה המקורית ב-FAQ
+        fuzzy_score = fuzz.token_sort_ratio(nq, normalize_he(item.question))
+        # ניקוד משופר: חיבור של הדימיון הסמנטי והפאזי
+        boosted_score = (score * 0.7) + (1.0 - (fuzzy_score / 100)) * 0.3
+        boosted_hits.append((doc, boosted_score, idx))
+
+    # מיון לפי הניקוד המשופר
+    boosted_hits.sort(key=lambda x: x[1])
+    
+    best_doc, best_score, best_idx = boosted_hits[0]
+
+    if best_score <= 1.1: # סף הצלחה מעודכן
+        result_item = faq_items[best_idx]
         
-        # 🌟 טיפול בתוכן התשובה
-        content = process_answer_content(item.answer)
+        # 1. 🌟 טיפול בתוכן התשובה (כולל הוראות/קישורים)
+        final_content = process_answer_content(result_item)
 
-        # 💥 התיקון: החלפת כל מעבר שורה בודד ב-Markdown
-        final_content = content.replace('\n', '\n\n')
+        # 2. 💥 הוספת שאלות קשורות (כמו ב-faq7.py)
+        similar_questions = [
+            faq_items[d.metadata["idx"]].question
+            for d, s, _ in boosted_hits[1:4] # 3 התוצאות הבאות
+            if s <= 1.3 and faq_items[d.metadata["idx"]].question.strip() != result_item.question.strip()
+        ][:3]
+        
+        if similar_questions:
+            final_content += "\n\n**שאלות קשורות:**\n" + "\n".join([f"- {q}" for q in similar_questions])
 
-        # החזרת הפלט עם מעברי השורה כפולים
-        return f"{final_content}\n\nמקור: faq\n\nשאלה מזוהה (סמנטי): {item.question}"
+        # 3. החזרת הפלט
+        return f"{final_content}\n\nמקור: faq\n\nשאלה מזוהה (סמנטי): {result_item.question}"
 
     return "לא נמצאה תשובה, נסה לנסח את השאלה מחדש."
 
@@ -277,7 +310,7 @@ def handle_submit():
         st.session_state.query_input = "" # מאפס את שדה הקלט
 
 # ============================================
-#   ניהול שיחה כמו ChatGPT
+#   ניהול שיחה כמו ChatGPT (שומר על סדר התצוגה)
 # ============================================
 if "messages" not in st.session_state:
     # כל הודעה היא מילון: {"role": "user"/"assistant", "content": "..."}
@@ -323,7 +356,7 @@ if len(st.session_state.messages) > 0:
     st.markdown("---") # קו מפריד
 
 # =======================================================================
-# 💥 התיקון הקריטי: הצגת היסטוריית שיחה בזוגות בסדר הפוך (Q -> A)
+# 💥 הצגת היסטוריית שיחה בזוגות בסדר הפוך (Q -> A)
 # =======================================================================
 
 # איתור האינדקסים של כל הודעות ה"user" (שאלה), שהן תמיד האיבר הראשון בזוג
@@ -355,5 +388,3 @@ for user_idx in user_indices[::-1]:
         
         # הצגת התוכן (כולל ה-Markdown) ב-st.markdown נפרד
         st.markdown(display_content, unsafe_allow_html=True)
-
-# =======================================================================
