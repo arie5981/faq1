@@ -15,7 +15,7 @@ import openai
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
-import json # 💥 חובה לייבא json לטובת ניתוח שאלות קשורות
+import json 
 
 # ============================================
 #   הגדרת מפתח OpenAI מ־Streamlit Secrets
@@ -78,7 +78,7 @@ html, body, [class*="css"]  {
 
 /* טקסט תשובה */
 .assistant-text {
-    margin: 0.2rem 0 0 0; /* 💥 תיקון: צמצום המרווח התחתון ל-0 */
+    margin: 0.2rem 0 0 0; 
 }
 
 /* תיבת הקלט */
@@ -89,12 +89,21 @@ html, body, [class*="css"]  {
     border-top: 1px solid #333;
 }
 
-/* הסתרת כפתור "שלח" של הטופס – שולחים עם Enter */
-div.stButton > button {
-    display: none;
+/* 💥 הסתרת כפתור "שלח" של הטופס – שולחים עם Enter */
+/* 💡 הכלל הגורף שהסתיר את כל השאלות הוסר. נסתיר רק את ה-submit button בתוך הטופס */
+/* Streamlit נותן לטופס testid="stForm" */
+div[data-testid="stForm"] div.stButton button {
+    visibility: hidden; /* הסתרה עדינה יותר מ-display:none כדי לא לשבור את הפריסה */
+    width: 0.1px;
+    padding: 0;
+    margin: 0;
+    height: 0.1px;
 }
+
+
 /* 💥 CSS נוסף: עיצוב כפתורי השאלות כקישורים */
-.stButton button {
+/* הכפתורים של השאלות מחוץ לטופס ייראו כך: */
+div.stButton button { 
     text-align: right !important;
     width: 100%;
     margin-bottom: 0.5rem;
@@ -104,7 +113,7 @@ div.stButton > button {
     background-color: #f0f0f0;
     font-size: 1rem;
 }
-.stButton button:hover {
+div.stButton button:hover {
     background-color: #e0e0e0;
 }
 
@@ -114,8 +123,6 @@ div.stButton > button {
 # ============================================
 #   כותרת עליונה עם לוגו וטקסט
 # ============================================
-# אם יש לך קובץ לוגו בתיקייה, אפשר להשתמש: "logo.png"
-# כרגע נשים URL כללי, אפשר להחליף אחר כך.
 logo_url = "https://raw.githubusercontent.com/arie5981/faq1/main/logobtl.png"
 
 st.markdown(
@@ -142,10 +149,6 @@ def read_txt_utf8(path: str) -> str:
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
-# 💥 נניח שקובץ faq.txt קיים
-# raw_faq = read_txt_utf8(FAQ_PATH)
-# 💥 אם הקובץ אינו נגיש ישירות ב-Streamlit Cloud, ניתן לטעון אותו מ-GitHub
-# נשתמש בהנחה שהוא נגיש או נשנה את הקריאה לקריאה נכונה לריפו אם זה המצב
 try:
     raw_faq = read_txt_utf8(FAQ_PATH)
 except FileNotFoundError:
@@ -175,8 +178,6 @@ class FAQItem:
 
 def parse_faq_new(text: str) -> List[FAQItem]:
     items = []
-    
-    # הגדרת blocks חייבת להיות ברמת ההזחה הזו
     blocks = re.split(r"(?=שאלה\s*:)", text) 
 
     for b in blocks:
@@ -188,7 +189,6 @@ def parse_faq_new(text: str) -> List[FAQItem]:
         v_match = re.search(r"(?s)ניסוחים דומים\s*:\s*(.+?)(?:\nתשובה\s*:|\Z)", b)
         a_match = re.search(r"(?s)תשובה\s*:\s*(.+?)(?:\nהוראה\s*:|\Z)", b)
         i_match = re.search(r"(?s)הוראה\s*:\s*(.+?)(?:\n>>|\Z)", b)
-        # 💥 לכידת פרטי קשר מרובים
         c_match = re.findall(r">>([^:]+?)\s*:\s*([^<]+?)<<", b)
 
         question = q_match.group(1).strip() if q_match else ""
@@ -224,10 +224,9 @@ for i, item in enumerate(faq_items):
 
 faq_store = FAISS.from_documents(docs, embeddings)
 # ============================================
-#   חיפוש FAQ – fuzzy + embeddings (לוגיקה משופרת מ-faq7.py)
+#   חיפוש FAQ – fuzzy + embeddings
 # ============================================
 
-# 💥 פונקציית העיבוד הורחבה לטפל בהוראות וקישורים
 def process_answer_content(item: FAQItem) -> str:
     answer_text = item.answer.strip()
     
@@ -237,15 +236,12 @@ def process_answer_content(item: FAQItem) -> str:
         
         # החלפת מילות מפתח בקישורי Markdown
         for key, value in contact_details.items():
-            # [שם הקישור](כתובת הקישור/מייל)
             markdown_link = f"[{key}]({value})"
-            
-            # החלף את הטקסט המופיע בהוראה
             instruction = instruction.replace(f"[{key}]", markdown_link)
         
         answer_text += f"\n\n**הערות והוראות:** {instruction}"
 
-    # 💥 הוספת \n\n בין פסקאות
+    # הוספת \n\n בין פסקאות
     final_content = answer_text.replace('\n', '\n\n')
     return final_content
 
@@ -268,27 +264,22 @@ def search_faq(query: str) -> str:
     if best_score >= 80:
         item = faq_items[best_idx]
         
-        # 🌟 טיפול בתוכן התשובה
         final_content = process_answer_content(item)
         
-        # החזרת הפלט עם מעברי השורה כפולים
         return f"{final_content}\n\nמקור: faq\n\nשאלה מזוהה: {item.question}"
 
     # --- fallback: embeddings (עם שיפור ניקוד) ---
     hits = faq_store.similarity_search_with_score(query, k=5)
     
-    # 💥 בונוס ניקוד לדימיון פאזי
+    # בונוס ניקוד לדימיון פאזי
     boosted_hits = []
     for doc, score in hits:
         idx = doc.metadata["idx"]
         item = faq_items[idx]
-        # חישוב דימיון פאזי
         fuzzy_score = fuzz.token_sort_ratio(nq, normalize_he(item.question))
-        # ניקוד משופר: חיבור של הדימיון הסמנטי והפאזי
         boosted_score = (score * 0.7) + (1.0 - (fuzzy_score / 100)) * 0.3
         boosted_hits.append((doc, boosted_score, idx))
 
-    # מיון לפי הניקוד המשופר
     boosted_hits.sort(key=lambda x: x[1])
     
     best_doc, best_score, best_idx = boosted_hits[0]
@@ -296,23 +287,19 @@ def search_faq(query: str) -> str:
     if best_score <= 1.1: # סף הצלחה מעודכן
         result_item = faq_items[best_idx]
         
-        # 1. 🌟 טיפול בתוכן התשובה (כולל הוראות/קישורים)
         final_content = process_answer_content(result_item)
 
-        # 2. 💥 הוספת שאלות קשורות (מוחזרות כסטרינג JSON)
+        # 💥 הוספת שאלות קשורות (מוחזרות כסטרינג JSON)
         similar_questions = [
             faq_items[d.metadata["idx"]].question
-            for d, s, _ in boosted_hits[1:4] # 3 התוצאות הבאות
+            for d, s, _ in boosted_hits[1:4] 
             if s <= 1.3 and faq_items[d.metadata["idx"]].question.strip() != result_item.question.strip()
         ][:3]
         
         if similar_questions:
-             # נשתמש בפורמט מוסכם כמו "---SIMILAR_QUESTIONS---[Q1, Q2, Q3]"
             sq_json = json.dumps(similar_questions, ensure_ascii=False)
             final_content += f"\n\n---SIMILAR_QUESTIONS---{sq_json}"
 
-
-        # 3. החזרת הפלט
         return f"{final_content}\n\nמקור: faq\n\nשאלה מזוהה (סמנטי): {result_item.question}"
 
     return "לא נמצאה תשובה, נסה לנסח את השאלה מחדש."
@@ -321,33 +308,22 @@ def search_faq(query: str) -> str:
 #   פונקציית Callback לטיפול בשליחת הטופס / לחיצה על שאלה
 # ============================================
 def handle_submit(query_text=None):
-    # אם הטקסט נשלח מטופס הקלט (query_text=None), אנו מושכים אותו מה-session_state
     if query_text is None:
-        # Streamlit מאתחל את כל רכיבי הטופס כערכי Session State לפי מפתח ("query_input")
         query = st.session_state.query_input
     else:
-        # אם הטקסט נשלח ישירות מכפתור, אנו משתמשים בערך שלו
         query = query_text
 
     if query:
-        # 1. הוספת השאלה להיסטוריה
         st.session_state.messages.append({"role": "user", "content": query})
-        
-        # 2. הפעלת מנוע ה־FAQ
         answer = search_faq(query)
-        
-        # 3. הוספת תשובה להיסטוריה
         st.session_state.messages.append({"role": "assistant", "content": answer})
-        
-        # 4. ניקוי תיבת הקלט לאחר שליחה
-        st.session_state.query_input = "" # מאפס את שדה הקלט
+        st.session_state.query_input = "" 
 
 
 # ============================================
-#   ניהול שיחה כמו ChatGPT (שומר על סדר התצוגה)
+#   ניהול שיחה כמו ChatGPT
 # ============================================
 if "messages" not in st.session_state:
-    # כל הודעה היא מילון: {"role": "user"/"assistant", "content": "..."}
     st.session_state.messages = []
 
 # שאלות נפוצות למסך הראשון
@@ -366,103 +342,7 @@ st.markdown("")
 if len(st.session_state.messages) == 0:
     st.markdown("### שאלות נפוצות:")
     
+    # 💥 הוספת הכפתורים במקום st.markdown
     for i, q in enumerate(POPULAR_QUESTIONS, start=1):
-        # יצירת כפתור לחיץ המפעיל את handle_submit עם השאלה
         st.button(
-            f"{q} **<לתשובה לחץ כאן>**", 
-            key=f"popular_q_{i}", 
-            on_click=handle_submit, 
-            args=(q,)
-        )
-
-    st.markdown("## איך אפשר לעזור?")
-    st.markdown("")
-
-# ----------------------------------------------------
-# 💥 תיבת הקלט מופיעה כעת ראשונה
-# ----------------------------------------------------
-st.markdown('<div class="question-box"></div>', unsafe_allow_html=True)
-
-with st.form("ask_form", clear_on_submit=False): 
-    # st.text_input עם מפתח (key) כדי שנוכל לגשת לערך שלו ב-session_state ב-callback
-    query = st.text_input(" ", 
-                          placeholder="שאל שאלה והקש Enter", 
-                          key="query_input")
-    
-    # שימוש בפרמטר on_click כדי לקרוא לפונקציה handle_submit מיד עם השליחה
-    # (הטופס עצמו קורא ל-handle_submit ללא ארגומנטים)
-    submitted = st.form_submit_button("שלח", on_click=handle_submit)
-
-# ----------------------------------------------------
-# 💥 מפריד ויזואלי בין טופס הקלט להיסטוריה
-# ----------------------------------------------------
-if len(st.session_state.messages) > 0:
-    st.markdown("---") # קו מפריד
-
-# =======================================================================
-# 💥 הצגת היסטוריית שיחה בזוגות בסדר הפוך (Q -> A) + שאלות קשורות ככפתורים
-# =======================================================================
-
-# איתור האינדקסים של כל הודעות ה"user" (שאלה), שהן תמיד האיבר הראשון בזוג
-user_indices = [i for i, msg in enumerate(st.session_state.messages) if msg["role"] == "user"]
-
-# מעבר על האינדקסים בסדר הפוך (האינטראקציה האחרונה קודם)
-for user_idx in user_indices[::-1]:
-    
-    # 1. הצגת הודעת השאלה
-    user_msg = st.session_state.messages[user_idx]
-    st.markdown(f"""
-<div class="user-bubble">
-<strong>שאלה:</strong> {user_msg['content']}
-</div>
-""", unsafe_allow_html=True)
-    
-    # 2. הצגת הודעת התשובה (אם קיימת)
-    assistant_idx = user_idx + 1
-    if assistant_idx < len(st.session_state.messages):
-        assistant_msg = st.session_state.messages[assistant_idx]
-        raw_display_content = assistant_msg['content'] 
-        
-        # 💥 חילוץ שאלות קשורות מתוך התוכן
-        similar_questions = []
-        sq_match = re.search(r"---SIMILAR_QUESTIONS---(.*)", raw_display_content)
-        
-        if sq_match:
-            try:
-                sq_json_str = sq_match.group(1).strip()
-                similar_questions = json.loads(sq_json_str)
-                # הסרת ה-JSON מתוכן התצוגה הראשי
-                display_content = raw_display_content.replace(f"\n\n---SIMILAR_QUESTIONS---{sq_json_str}", "").strip()
-            except json.JSONDecodeError:
-                display_content = raw_display_content
-        else:
-            display_content = raw_display_content
-            
-        # הצגת התווית "תשובה:" ועיצוב כללי באמצעות HTML
-        st.markdown(f"""
-<div class="assistant-text">
-<strong>תשובה:</strong>
-</div>
-""", unsafe_allow_html=True)
-        
-        # הצגת התוכן (כולל ה-Markdown) ב-st.markdown נפרד
-        st.markdown(display_content, unsafe_allow_html=True)
-
-        # 💥 הצגת השאלות הקשורות ככפתורים
-        if similar_questions:
-            st.markdown("---") # מפריד
-            st.markdown("#### שאלות קשורות:")
-            
-            # יצירת מזהה בסיס לכפתורים שונים
-            base_key = f"similar_q_{user_idx}" 
-            
-            for i, sq in enumerate(similar_questions):
-                button_key = f"{base_key}_{i}"
-                
-                # יצירת כפתור עם לוגיקת Callback
-                st.button(
-                    f"{sq} **<לתשובה לחץ כאן>**", 
-                    key=button_key, 
-                    on_click=handle_submit, 
-                    args=(sq,)
-                )
+            f"{q} **<לתש
