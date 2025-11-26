@@ -1,6 +1,6 @@
 # ============================================
 #   עוזר אתר מייצגים – גרסה ל-Streamlit
-#   (מעודכן: שאלות נפוצות וקשורות מוצגות כרשימה)
+#   (מעודכן: שאלות נפוצות וקשורות כרשימה ממוספרת עם כפתור צמוד)
 # ============================================
 
 import streamlit as st
@@ -106,35 +106,41 @@ div[data-testid="stForm"] div.stButton button {
 }
 
 /* 💡 CSS לשינוי עיצוב הכפתורים: קטן יותר ומוצמד לשאלה ברשימה */
-.list-item-container {
-    display: flex;
-    align-items: flex-start; /* יישור לפסקה הראשונה של השאלה */
-    margin-bottom: 0.5rem;
-}
-
-.list-item-container > div:first-child {
-    flex-grow: 1; /* הרשימה תופסת את רוב השטח */
-    padding-top: 0.2rem;
-    padding-left: 0.5rem; /* רווח מהכפתור */
-}
-
-.list-item-container div.stButton button { 
+div.stButton button { 
     /* עיצוב כפתור התשובה הקטן */
     height: 28px;
     line-height: 1;
-    padding: 4px 8px;
+    padding: 4px 8px; /* צמצום Padding אנכי */
     font-size: 0.8rem;
     border-radius: 4px;
     background-color: #3b82f6; /* כחול */
     color: white;
     border: none;
     white-space: nowrap;
-    width: auto;
+    width: auto; /* רוחב אוטומטי בהתאם לטקסט */
     margin: 0;
 }
-.list-item-container div.stButton button:hover {
+div.stButton button:hover {
     background-color: #2563eb;
 }
+
+/* 💡 CSS לצמצום רווחים סביב העמודות */
+/* הקוד הבא מכוון לצמצום הרווח בין השורות של השאלות */
+div.st-emotion-cache-1r6r8qj > div { /* קונטיינר העמודות */
+    padding-bottom: 0px !important; 
+    padding-top: 0px !important;
+}
+
+/* 💡 CSS לצמצום רווח בין שורת הרשימה לכפתור */
+.st-emotion-cache-n1k6q3 { /* מחלק את השטח של העמודה (col_q) */
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+.st-emotion-cache-1c9v68d { /* קונטיינר של st.markdown */
+    padding-top: 0rem !important;
+    padding-bottom: 0rem !important;
+}
+
 
 </style>
 """, unsafe_allow_html=True)
@@ -381,17 +387,15 @@ if len(st.session_state.messages) == 0:
     st.markdown("### שאלות נפוצות:")
     
     for i, q in enumerate(POPULAR_QUESTIONS, start=1):
-        # 💡 שימוש ב-HTML/CSS כדי לשלב את השאלה והכפתור באותה שורה
-        # השימוש ב-st.empty() בתוך לולאה מבטיח שהכפתור יפעל נכון
-        
-        col_q, col_btn = st.columns([0.8, 0.2])
+        # 💡 חלוקה ל-3 עמודות: שאלה, רווח קטן, כפתור (עם gap="small")
+        col_q, col_spacer, col_btn = st.columns([0.65, 0.1, 0.25], gap="small")
         
         with col_q:
             # 💡 הצגת השאלה כחלק מרשימה ממוספרת
             st.markdown(f"**{i}.** {q}", unsafe_allow_html=True)
             
         with col_btn:
-             # 💡 כפתור קטן שמפעיל את handle_submit עם תוכן השאלה
+             # 💡 כפתור קטן שמפעיל את handle_submit
             st.button(
                 "לתשובה", 
                 key=f"popular_q_{i}", 
@@ -471,14 +475,15 @@ for user_idx in user_indices[::-1]:
             base_key = f"similar_q_{user_idx}" 
             
             for i, sq in enumerate(similar_questions, start=1):
-                col_q, col_btn = st.columns([0.8, 0.2])
+                # 💡 חלוקה ל-3 עמודות: שאלה, רווח קטן, כפתור (עם gap="small")
+                col_q, col_spacer, col_btn = st.columns([0.65, 0.1, 0.25], gap="small")
 
                 with col_q:
                     # 💡 הצגת השאלה כחלק מרשימה ממוספרת
                     st.markdown(f"**{i}.** {sq}", unsafe_allow_html=True)
                     
                 with col_btn:
-                    # 💡 כפתור קטן שמפעיל את handle_submit עם תוכן השאלה
+                    # 💡 כפתור קטן שמפעיל את handle_submit
                     st.button(
                         "לתשובה", 
                         key=f"{base_key}_{i}", 
