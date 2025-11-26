@@ -1,6 +1,6 @@
 # ============================================
 #   עוזר אתר מייצגים – גרסה ל-Streamlit
-#   (מעודכן: שאלות נפוצות וקשורות כרשימה ממוספרת עם כפתור צמוד)
+#   (מעודכן: פתרון מיקום כפתור - שינוי חלוקת טורים ו-CSS)
 # ============================================
 
 import streamlit as st
@@ -31,7 +31,6 @@ os.environ["OPENAI_API_KEY"] = openai_api_key
 # ============================================
 #   משתנה גלובלי לקישורים
 # ============================================
-# 💡 משתנה גלובלי שיכיל את כל הקישורים המרוכזים
 GLOBAL_CONTACT_DETAILS = {}
 
 
@@ -124,6 +123,14 @@ div.stButton button:hover {
     background-color: #2563eb;
 }
 
+/* 💡 כלל קריטי: ביטול יישור flex-end בטורים של Streamlit (שמצמיד לשמאל) */
+/* זה מכריח את הכפתור להתיישר לימין של הטור שלו (אחרי השאלה) */
+[data-testid="stColumn"] > div {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; 
+}
+
 /* 💡 CSS לצמצום רווחים סביב העמודות */
 /* הקוד הבא מכוון לצמצום הרווח בין השורות של השאלות */
 div.st-emotion-cache-1r6r8qj > div { /* קונטיינר העמודות */
@@ -140,8 +147,6 @@ div.st-emotion-cache-1r6r8qj > div { /* קונטיינר העמודות */
     padding-top: 0rem !important;
     padding-bottom: 0rem !important;
 }
-
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -387,15 +392,15 @@ if len(st.session_state.messages) == 0:
     st.markdown("### שאלות נפוצות:")
     
     for i, q in enumerate(POPULAR_QUESTIONS, start=1):
-        # 💡 חלוקה ל-3 עמודות: שאלה, רווח קטן, כפתור (עם gap="small")
-        col_q, col_spacer, col_btn = st.columns([0.65, 0.1, 0.25], gap="small")
+        # 💡 חלוקה ל-2 עמודות: שאלה (80%), כפתור (20%) עם gap="small"
+        col_q, col_btn = st.columns([0.8, 0.2], gap="small")
         
         with col_q:
             # 💡 הצגת השאלה כחלק מרשימה ממוספרת
             st.markdown(f"**{i}.** {q}", unsafe_allow_html=True)
             
         with col_btn:
-             # 💡 כפתור קטן שמפעיל את handle_submit
+             # 💡 כפתור קטן שיוצמד לשאלה
             st.button(
                 "לתשובה", 
                 key=f"popular_q_{i}", 
@@ -475,15 +480,15 @@ for user_idx in user_indices[::-1]:
             base_key = f"similar_q_{user_idx}" 
             
             for i, sq in enumerate(similar_questions, start=1):
-                # 💡 חלוקה ל-3 עמודות: שאלה, רווח קטן, כפתור (עם gap="small")
-                col_q, col_spacer, col_btn = st.columns([0.65, 0.1, 0.25], gap="small")
+                # 💡 חלוקה ל-2 עמודות: שאלה (80%), כפתור (20%) עם gap="small"
+                col_q, col_btn = st.columns([0.8, 0.2], gap="small")
 
                 with col_q:
                     # 💡 הצגת השאלה כחלק מרשימה ממוספרת
                     st.markdown(f"**{i}.** {sq}", unsafe_allow_html=True)
                     
                 with col_btn:
-                    # 💡 כפתור קטן שמפעיל את handle_submit
+                    # 💡 כפתור קטן שיוצמד לשאלה
                     st.button(
                         "לתשובה", 
                         key=f"{base_key}_{i}", 
