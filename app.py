@@ -1,6 +1,6 @@
 # ============================================
 #   עוזר אתר מייצגים – גרסה ל-Streamlit
-#   (מעודכן: פתרון מיקום כפתור - שינוי חלוקת טורים ו-CSS)
+#   (מעודכן: פתרון סופי למיקום כפתור וצמצום רווחים)
 # ============================================
 
 import streamlit as st
@@ -107,46 +107,49 @@ div[data-testid="stForm"] div.stButton button {
 /* 💡 CSS לשינוי עיצוב הכפתורים: קטן יותר ומוצמד לשאלה ברשימה */
 div.stButton button { 
     /* עיצוב כפתור התשובה הקטן */
-    height: 28px;
+    height: 25px; /* גובה נמוך יותר */
     line-height: 1;
-    padding: 4px 8px; /* צמצום Padding אנכי */
+    padding: 2px 8px; /* צמצום Padding אנכי */
     font-size: 0.8rem;
     border-radius: 4px;
     background-color: #3b82f6; /* כחול */
     color: white;
     border: none;
     white-space: nowrap;
-    width: auto; /* רוחב אוטומטי בהתאם לטקסט */
+    width: auto; 
     margin: 0;
 }
 div.stButton button:hover {
     background-color: #2563eb;
 }
 
-/* 💡 כלל קריטי: ביטול יישור flex-end בטורים של Streamlit (שמצמיד לשמאל) */
-/* זה מכריח את הכפתור להתיישר לימין של הטור שלו (אחרי השאלה) */
-[data-testid="stColumn"] > div {
+/* 💡 כלל קריטי: מכריח את הטור של הכפתור להתיישר לימין (Flex-End) */
+[data-testid="stColumn"] {
     display: flex;
     flex-direction: column;
-    align-items: flex-start; 
+    align-items: flex-end; 
 }
 
-/* 💡 CSS לצמצום רווחים סביב העמודות */
-/* הקוד הבא מכוון לצמצום הרווח בין השורות של השאלות */
-div.st-emotion-cache-1r6r8qj > div { /* קונטיינר העמודות */
+/* ודא שהטקסט בתוך הטורים נשאר מיושר לימין */
+[data-testid="stColumn"] > div {
+    width: 100%;
+    text-align: right;
+}
+
+/* 💡 כללי צמצום רווחים אנכיים בין השאלות */
+.st-emotion-cache-1r6r8qj { /* קונטיינר העמודות הראשי */
+    margin-bottom: 0.5rem !important; /* רווח קטן בין השורות */
     padding-bottom: 0px !important; 
     padding-top: 0px !important;
 }
 
-/* 💡 CSS לצמצום רווח בין שורת הרשימה לכפתור */
-.st-emotion-cache-n1k6q3 { /* מחלק את השטח של העמודה (col_q) */
-    margin-bottom: 0 !important;
-    padding-bottom: 0 !important;
-}
-.st-emotion-cache-1c9v68d { /* קונטיינר של st.markdown */
+/* 💡 צמצום padding בתוך ה-Markdown של השאלה */
+.st-emotion-cache-1c9v68d { 
     padding-top: 0rem !important;
     padding-bottom: 0rem !important;
+    line-height: 1.2; /* צמצום גובה השורה */
 }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -306,192 +309,4 @@ def search_faq(query: str) -> str:
     # --- חיפוש פאזי על שאלות וניסוחים ---
     scored = []
     for i, item in enumerate(faq_items):
-        all_texts = [item.question] + item.variants
-        for t in all_texts:
-            score = fuzz.token_sort_ratio(nq, normalize_he(t))
-            scored.append((score, i, t))
-
-    scored.sort(reverse=True, key=lambda x: x[0])
-    best_score, best_idx, _ = scored[0]
-
-    if best_score >= 80:
-        item = faq_items[best_idx]
-        final_content = process_answer_content(item)
-        return f"{final_content}\n\nמקור: faq\n\nשאלה מזוהה: {item.question}"
-
-    # --- fallback: embeddings (עם שיפור ניקוד) ---
-    hits = faq_store.similarity_search_with_score(query, k=5)
-    
-    boosted_hits = []
-    for doc, score in hits:
-        idx = doc.metadata["idx"]
-        item = faq_items[idx]
-        fuzzy_score = fuzz.token_sort_ratio(nq, normalize_he(item.question))
-        boosted_score = (score * 0.7) + (1.0 - (fuzzy_score / 100)) * 0.3
-        boosted_hits.append((doc, boosted_score, idx))
-
-    boosted_hits.sort(key=lambda x: x[1])
-    
-    best_doc, best_score, best_idx = boosted_hits[0]
-
-    if best_score <= 1.1: 
-        result_item = faq_items[best_idx]
-        
-        final_content = process_answer_content(result_item)
-
-        similar_questions = [
-            faq_items[d.metadata["idx"]].question
-            for d, s, _ in boosted_hits[1:4] 
-            if s <= 1.3 and faq_items[d.metadata["idx"]].question.strip() != result_item.question.strip()
-        ][:3]
-        
-        if similar_questions:
-            sq_json = json.dumps(similar_questions, ensure_ascii=False)
-            final_content += f"\n\n---SIMILAR_QUESTIONS---{sq_json}"
-
-        return f"{final_content}\n\nמקור: faq\n\nשאלה מזוהה (סמנטי): {result_item.question}"
-
-    return "לא נמצאה תשובה, נסה לנסח את השאלה מחדש."
-
-# ============================================
-#   פונקציית Callback לטיפול בשליחת הטופס / לחיצה על שאלה
-# ============================================
-def handle_submit(query_text=None):
-    if query_text is None:
-        query = st.session_state.query_input
-    else:
-        query = query_text
-
-    if query:
-        st.session_state.messages.append({"role": "user", "content": query})
-        answer = search_faq(query)
-        st.session_state.messages.append({"role": "assistant", "content": answer})
-        st.session_state.query_input = "" 
-
-
-# ============================================
-#   ניהול שיחה כמו ChatGPT
-# ============================================
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# שאלות נפוצות למסך הראשון
-POPULAR_QUESTIONS = [
-    "איך מוסיפים משתמש חדש באתר מייצגים.",
-    "מקבל הודעה שאחד או יותר מנתוני ההזדהות שגויים.",
-    "איך יוצרים קיצור דרך לאתר מייצגים על שולחן העבודה.",
-    "רוצה לקבל את הקוד החד פעמי לדואר אלקטרוני.",
-]
-
-st.markdown("")
-
-# ----------------------------------------------------
-# 💡 הצגת שאלות נפוצות כרשימה ממוספרת עם כפתור קטן
-# ----------------------------------------------------
-if len(st.session_state.messages) == 0:
-    st.markdown("### שאלות נפוצות:")
-    
-    for i, q in enumerate(POPULAR_QUESTIONS, start=1):
-        # 💡 חלוקה ל-2 עמודות: שאלה (80%), כפתור (20%) עם gap="small"
-        col_q, col_btn = st.columns([0.8, 0.2], gap="small")
-        
-        with col_q:
-            # 💡 הצגת השאלה כחלק מרשימה ממוספרת
-            st.markdown(f"**{i}.** {q}", unsafe_allow_html=True)
-            
-        with col_btn:
-             # 💡 כפתור קטן שיוצמד לשאלה
-            st.button(
-                "לתשובה", 
-                key=f"popular_q_{i}", 
-                on_click=handle_submit, 
-                args=(q,)
-            )
-
-    st.markdown("## איך אפשר לעזור?")
-    st.markdown("")
-
-# ----------------------------------------------------
-# תיבת הקלט
-# ----------------------------------------------------
-st.markdown('<div class="question-box"></div>', unsafe_allow_html=True)
-
-with st.form("ask_form", clear_on_submit=False): 
-    query = st.text_input(" ", 
-                          placeholder="שאל שאלה והקש Enter", 
-                          key="query_input")
-    
-    submitted = st.form_submit_button("שלח", on_click=handle_submit)
-
-# ----------------------------------------------------
-# מפריד ויזואלי בין טופס הקלט להיסטוריה
-# ----------------------------------------------------
-if len(st.session_state.messages) > 0:
-    st.markdown("---") 
-
-# =======================================================================
-# הצגת היסטוריית שיחה ורשימת שאלות קשורות
-# =======================================================================
-
-user_indices = [i for i, msg in enumerate(st.session_state.messages) if msg["role"] == "user"]
-
-for user_idx in user_indices[::-1]:
-    
-    # 1. הצגת הודעת השאלה
-    user_msg = st.session_state.messages[user_idx]
-    st.markdown(f"""
-<div class="user-bubble">
-<strong>שאלה:</strong> {user_msg['content']}
-</div>
-""", unsafe_allow_html=True)
-    
-    # 2. הצגת הודעת התשובה (אם קיימת)
-    assistant_idx = user_idx + 1
-    if assistant_idx < len(st.session_state.messages):
-        assistant_msg = st.session_state.messages[assistant_idx]
-        raw_display_content = assistant_msg['content'] 
-        
-        similar_questions = []
-        sq_match = re.search(r"---SIMILAR_QUESTIONS---(.*)", raw_display_content)
-        
-        if sq_match:
-            try:
-                sq_json_str = sq_match.group(1).strip()
-                similar_questions = json.loads(sq_json_str)
-                display_content = raw_display_content.replace(f"\n\n---SIMILAR_QUESTIONS---{sq_json_str}", "").strip()
-            except json.JSONDecodeError:
-                display_content = raw_display_content
-        else:
-            display_content = raw_display_content
-            
-        st.markdown(f"""
-<div class="assistant-text">
-<strong>תשובה:</strong>
-</div>
-""", unsafe_allow_html=True)
-        
-        st.markdown(display_content, unsafe_allow_html=True)
-
-        # 💡 הצגת השאלות הקשורות כרשימה ממוספרת עם כפתור קטן
-        if similar_questions:
-            st.markdown("---") 
-            st.markdown("#### שאלות קשורות:")
-            
-            base_key = f"similar_q_{user_idx}" 
-            
-            for i, sq in enumerate(similar_questions, start=1):
-                # 💡 חלוקה ל-2 עמודות: שאלה (80%), כפתור (20%) עם gap="small"
-                col_q, col_btn = st.columns([0.8, 0.2], gap="small")
-
-                with col_q:
-                    # 💡 הצגת השאלה כחלק מרשימה ממוספרת
-                    st.markdown(f"**{i}.** {sq}", unsafe_allow_html=True)
-                    
-                with col_btn:
-                    # 💡 כפתור קטן שיוצמד לשאלה
-                    st.button(
-                        "לתשובה", 
-                        key=f"{base_key}_{i}", 
-                        on_click=handle_submit, 
-                        args=(sq,)
-                    )
+        all_texts = [item.question]
