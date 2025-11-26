@@ -1,6 +1,6 @@
 # ============================================
 #   עוזר אתר מייצגים – גרסה ל-Streamlit
-#   (קוד סופי: תיקון CSS מלא ליישור כפתורים וצמצום רווחים + תיקון שגיאת סינטקס)
+#   (קוד סופי: תיקון שגיאות קריסה באמצעות Try/Except סביב Embeddings)
 # ============================================
 
 import streamlit as st
@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 from rapidfuzz import fuzz, process
 
+# ייבוא ספריות ה-OpenAI וה-LangChain
 import openai
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -23,7 +24,7 @@ import json
 try:
     openai_api_key = st.secrets["OPENAI_API_KEY"]
 except KeyError:
-    st.error("❌ חסר מפתח OPENAI_API_KEY ב־Streamlit Secrets.\nיש להיכנס ל־Manage app → Settings → Secrets ולהוסיף:\nOPENAI_API_KEY = \"...\"")
+    st.error("❌ חסר מפתח OPENAI_API_KEY ב־Streamlit Secrets.")
     st.stop()
 
 os.environ["OPENAI_API_KEY"] = openai_api_key
@@ -39,7 +40,7 @@ GLOBAL_CONTACT_DETAILS = {}
 # ============================================
 st.set_page_config(page_title="תמיכה לאתר מייצגים", layout="wide")
 
-# 🎯 בלוק CSS מתוקן ובדוק
+# 🎯 בלוק CSS מתוקן ובדוק לפתרון בעיות היישור והמרווחים
 st.markdown("""
 <style>
 html, body, [class*="css"]  {
@@ -128,17 +129,16 @@ div.stButton button:hover {
 /* 🎯 תיקון סופי למיקום הכפתור: דריסת Flexbox של Streamlit */
 /* ============================================================= */
 [data-testid="stColumn"] {
-    /* מאפשר חלוקה ל-2 טורים ברוחב שונה */
     display: flex !important;
     flex-direction: row !important; 
-    align-items: center !important; /* יישור אנכי למרכז */
-    gap: 0.5rem !important; /* צמצום המרווח בין הטורים */
+    align-items: center !important; 
+    gap: 0.5rem !important; 
 }
 
 /* 💡 עבור הטור של הכפתור (הטור השני, nth-child(2)), נצמיד את התוכן שלו לימין (Flex-End) */
 [data-testid="stColumn"]:nth-child(2) > div {
     display: flex;
-    justify-content: flex-end; /* CRITICAL: הכפתור נצמד לימין הטור שלו = מיד אחרי השאלה */
+    justify-content: flex-end; 
     align-items: center;
     width: 100%; 
     padding: 0 !important;
@@ -177,7 +177,7 @@ div.stButton button:hover {
 # ============================================
 logo_url = "https://raw.githubusercontent.com/arie5981/faq1/main/logobtl.png"
 
-# 🐞 תיקון שגיאת הסינטקס: משתמשים ב-.format במקום ב-f-string מרובה שורות
+# תיקון שגיאת סינטקס: שימוש ב-.format
 st.markdown(
     """
 <div class="header-bar">
@@ -237,3 +237,303 @@ def parse_faq_new(text: str) -> List[FAQItem]:
 
     # 1. חילוץ כל הקישורים הגלובליים מכל הטקסט
     all_c_matches = re.findall(r">>([^:]+?)\s*:\s*([^<]+?)<<", text)
+    GLOBAL_CONTACT_DETAILS = {k.strip(): v.strip() for k, v in all_c_matches}
+    
+    # 2. הסרת כל הבלוקים של הקישורים הגלובליים מטקסט ה-FAQ
+    text_without_links = re.sub(r">>([^:]+?)\s*:\s*([^<]+?)<<", "", text)
+    
+    # 3. פיצול לבלוקים של שאלות
+    blocks = re.split(r"(?=שאלה\s*:)", text_without_links) 
+
+    for b in blocks:
+        b = b.strip()
+        if not b:
+            continue
+
+        q_match = re.search(r"שאלה\s*:\s*(.+)", b)
+        v_match = re.search(r"(?s)ניסוחים דומים\s*:\s*(.+?)(?:\nתשובה\s*:|\Z)", b)
+        a_match = re.search(r"(?s)תשובה\s*:\s*(.+?)(?:\nהוראה\s*:|\Z)", b)
+        i_match = re.search(r"(?s)הוראה\s*:\s*(.+?)(?:\n>>|\Z)", b)
+        
+        question = q_match.group(1).strip() if q_match else ""
+        
+        answer = ""
+        if a_match:
+            raw_answer_content = a_match.group(1)
+            lines = raw_answer_content.splitlines()
+            cleaned_lines = [line.strip() for line in lines]
+            answer = '\n'.join(cleaned_lines).strip()
+            
+        variants = []
+        if v_match:
+            raw = v_match.group(1)
+            variants = [s.strip(" -\t") for s in raw.split("\n") if s.strip()]
+
+        instruction = i_match.group(1).strip() if i_match else None
+        
+        items.append(FAQItem(question, variants, answer, instruction, contact_details={}))
+
+    return items
+
+faq_items = parse_faq_new(raw_faq)
+
+# === יצירת Embeddings + FAISS ===
+# יצירת משתנה גלובלי לאחסון ה-FAISS
+faq_store = None
+
+# 🎯 הגנת Try/Except סביב אתחול OpenAI/FAISS
+try:
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=openai_api_key)
+
+    docs = []
+    for i, item in enumerate(faq_items):
+        merged = " | ".join([item.question] + item.variants)
+        docs.append(Document(page_content=merged, metadata={"idx": i}))
+
+    faq_store = FAISS.from_documents(docs, embeddings)
+    st.session_state.embeddings_ready = True 
+except Exception as e:
+    # אם החיבור/אתחול נכשל, נלכוד את השגיאה, נדווח עליה, ונמשיך לרוץ
+    st.error(f"❌ שגיאה חמורה: יצירת מודל החיפוש נכשלה. האפליקציה תפעל במצב חיפוש פאזי בלבד. ייתכן שיש בעיה במפתח ה-OpenAI. שגיאה: {e}")
+    st.session_state.embeddings_ready = False
+    faq_store = None # ודא שהמשתנה נשאר None במקרה של כשל
+
+
+# ============================================
+#   פונקציה לעיבוד תוכן התשובה (משתמשת בגלובלי)
+# ============================================
+def process_answer_content(item: FAQItem) -> str:
+    global GLOBAL_CONTACT_DETAILS 
+    
+    answer_text = item.answer.strip()
+    
+    # 2. החלפת מילות מפתח בקישורי Markdown בתוך ה-ANSWER
+    if GLOBAL_CONTACT_DETAILS:
+        for key, value in GLOBAL_CONTACT_DETAILS.items():
+            markdown_link = f"[{key}]({value})"
+            answer_text = answer_text.replace(f"[{key}]", markdown_link)
+        
+        
+    # 3. טיפול בשדה 'הוראה' והוספתו בסוף
+    if item.instruction: 
+        instruction = item.instruction
+        
+        # 3א. החלפת מילות מפתח בקישורי Markdown בתוך ההוראה
+        for key, value in GLOBAL_CONTACT_DETAILS.items():
+            markdown_link = f"[{key}]({value})"
+            instruction = instruction.replace(f"[{key}]", markdown_link)
+        
+        answer_text += f"\n\n**הערות והוראות:** {instruction}"
+
+    # הוספת \n\n בין פסקאות
+    final_content = answer_text.replace('\n', '\n\n')
+    return final_content
+
+
+# ============================================
+#   חיפוש FAQ – fuzzy + embeddings
+# ============================================
+
+def search_faq(query: str) -> str:
+    nq = normalize_he(query)
+
+    # --- חיפוש פאזי על שאלות וניסוחים ---
+    scored = []
+    for i, item in enumerate(faq_items):
+        all_texts = [item.question] + item.variants
+        for t in all_texts:
+            score = fuzz.token_sort_ratio(nq, normalize_he(t))
+            scored.append((score, i, t))
+
+    scored.sort(reverse=True, key=lambda x: x[0])
+    best_score, best_idx, _ = scored[0]
+
+    if best_score >= 80:
+        item = faq_items[best_idx]
+        final_content = process_answer_content(item)
+        return f"{final_content}\n\nמקור: faq\n\nשאלה מזוהה: {item.question}"
+
+    # --- fallback: embeddings (עם שיפור ניקוד) ---
+    # 🎯 בדיקה האם המודל מוכן
+    if not st.session_state.embeddings_ready:
+        return "לא נמצאה תשובה בחיפוש פאזי. החיפוש הסמנטי אינו פעיל עקב שגיאת התחברות ל-OpenAI. נסה לנסח את השאלה מחדש."
+
+    hits = faq_store.similarity_search_with_score(query, k=5)
+    
+    boosted_hits = []
+    for doc, score in hits:
+        idx = doc.metadata["idx"]
+        item = faq_items[idx]
+        fuzzy_score = fuzz.token_sort_ratio(nq, normalize_he(item.question))
+        boosted_score = (score * 0.7) + (1.0 - (fuzzy_score / 100)) * 0.3
+        boosted_hits.append((doc, boosted_score, idx))
+
+    boosted_hits.sort(key=lambda x: x[1])
+    
+    best_doc, best_score, best_idx = boosted_hits[0]
+
+    if best_score <= 1.1: 
+        result_item = faq_items[best_idx]
+        
+        final_content = process_answer_content(result_item)
+
+        similar_questions = [
+            faq_items[d.metadata["idx"]].question
+            for d, s, _ in boosted_hits[1:4] 
+            if s <= 1.3 and faq_items[d.metadata["idx"]].question.strip() != result_item.question.strip()
+        ][:3]
+        
+        if similar_questions:
+            sq_json = json.dumps(similar_questions, ensure_ascii=False)
+            final_content += f"\n\n---SIMILAR_QUESTIONS---{sq_json}"
+
+        return f"{final_content}\n\nמקור: faq\n\nשאלה מזוהה (סמנטי): {result_item.question}"
+
+    return "לא נמצאה תשובה, נסה לנסח את השאלה מחדש."
+
+# ============================================
+#   פונקציית Callback לטיפול בשליחת הטופס / לחיצה על שאלה
+# ============================================
+def handle_submit(query_text=None):
+    if query_text is None:
+        query = st.session_state.query_input
+    else:
+        query = query_text
+
+    if query:
+        st.session_state.messages.append({"role": "user", "content": query})
+        answer = search_faq(query)
+        st.session_state.messages.append({"role": "assistant", "content": answer})
+        st.session_state.query_input = "" 
+
+
+# ============================================
+#   ניהול שיחה כמו ChatGPT
+# ============================================
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+    
+# 🎯 הוספת בדיקה למצב Embeddings ב-session_state
+if "embeddings_ready" not in st.session_state:
+    st.session_state.embeddings_ready = False
+
+# שאלות נפוצות למסך הראשון
+POPULAR_QUESTIONS = [
+    "איך מוסיפים משתמש חדש באתר מייצגים.",
+    "מקבל הודעה שאחד או יותר מנתוני ההזדהות שגויים.",
+    "איך יוצרים קיצור דרך לאתר מייצגים על שולחן העבודה.",
+    "רוצה לקבל את הקוד החד פעמי לדואר אלקטרוני.",
+]
+
+st.markdown("")
+
+# ----------------------------------------------------
+# 💡 הצגת שאלות נפוצות כרשימה ממוספרת עם כפתור קטן
+# ----------------------------------------------------
+if len(st.session_state.messages) == 0:
+    st.markdown("### שאלות נפוצות:")
+    
+    for i, q in enumerate(POPULAR_QUESTIONS, start=1):
+        # 💡 חלוקה ל-2 עמודות: שאלה (80%), כפתור (20%) עם gap="small"
+        col_q, col_btn = st.columns([0.8, 0.2], gap="small")
+        
+        with col_q:
+            # 💡 הצגת השאלה כחלק מרשימה ממוספרת
+            st.markdown(f"**{i}.** {q}", unsafe_allow_html=True)
+            
+        with col_btn:
+             # 💡 כפתור קטן שיוצמד לשאלה
+            st.button(
+                "לתשובה", 
+                key=f"popular_q_{i}", 
+                on_click=handle_submit, 
+                args=(q,)
+            )
+
+    st.markdown("## איך אפשר לעזור?")
+    st.markdown("")
+
+# ----------------------------------------------------
+# תיבת הקלט
+# ----------------------------------------------------
+st.markdown('<div class="question-box"></div>', unsafe_allow_html=True)
+
+with st.form("ask_form", clear_on_submit=False): 
+    query = st.text_input(" ", 
+                          placeholder="שאל שאלה והקש Enter", 
+                          key="query_input")
+    
+    submitted = st.form_submit_button("שלח", on_click=handle_submit)
+
+# ----------------------------------------------------
+# מפריד ויזואלי בין טופס הקלט להיסטוריה
+# ----------------------------------------------------
+if len(st.session_state.messages) > 0:
+    st.markdown("---") 
+
+# =======================================================================
+# הצגת היסטוריית שיחה ורשימת שאלות קשורות
+# =======================================================================
+
+user_indices = [i for i, msg in enumerate(st.session_state.messages) if msg["role"] == "user"]
+
+for user_idx in user_indices[::-1]:
+    
+    # 1. הצגת הודעת השאלה
+    user_msg = st.session_state.messages[user_idx]
+    st.markdown(f"""
+<div class="user-bubble">
+<strong>שאלה:</strong> {user_msg['content']}
+</div>
+""", unsafe_allow_html=True)
+    
+    # 2. הצגת הודעת התשובה (אם קיימת)
+    assistant_idx = user_idx + 1
+    if assistant_idx < len(st.session_state.messages):
+        assistant_msg = st.session_state.messages[assistant_idx]
+        raw_display_content = assistant_msg['content'] 
+        
+        similar_questions = []
+        sq_match = re.search(r"---SIMILAR_QUESTIONS---(.*)", raw_display_content)
+        
+        if sq_match:
+            try:
+                sq_json_str = sq_match.group(1).strip()
+                similar_questions = json.loads(sq_json_str)
+                display_content = raw_display_content.replace(f"\n\n---SIMILAR_QUESTIONS---{sq_json_str}", "").strip()
+            except json.JSONDecodeError:
+                display_content = raw_display_content
+        else:
+            display_content = raw_display_content
+            
+        st.markdown(f"""
+<div class="assistant-text">
+<strong>תשובה:</strong>
+</div>
+""", unsafe_allow_html=True)
+        
+        st.markdown(display_content, unsafe_allow_html=True)
+
+        # 💡 הצגת השאלות הקשורות כרשימה ממוספרת עם כפתור קטן
+        if similar_questions:
+            st.markdown("---") 
+            st.markdown("#### שאלות קשורות:")
+            
+            base_key = f"similar_q_{user_idx}" 
+            
+            for i, sq in enumerate(similar_questions, start=1):
+                # 💡 חלוקה ל-2 עמודות: שאלה (80%), כפתור (20%) עם gap="small"
+                col_q, col_btn = st.columns([0.8, 0.2], gap="small")
+
+                with col_q:
+                    # 💡 הצגת השאלה כחלק מרשימה ממוספרת
+                    st.markdown(f"**{i}.** {sq}", unsafe_allow_html=True)
+                    
+                with col_btn:
+                    # 💡 כפתור קטן שיוצמד לשאלה
+                    st.button(
+                        "לתשובה", 
+                        key=f"{base_key}_{i}", 
+                        on_click=handle_submit, 
+                        args=(sq,)
+                    )
