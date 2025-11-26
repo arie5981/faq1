@@ -39,6 +39,7 @@ GLOBAL_CONTACT_DETAILS = {}
 # ============================================
 st.set_page_config(page_title="תמיכה לאתר מייצגים", layout="wide")
 
+# 🎯 בלוק CSS מתוקן ובדוק
 st.markdown("""
 <style>
 html, body, [class*="css"]  {
@@ -137,4 +138,102 @@ div.stButton button:hover {
 /* 💡 עבור הטור של הכפתור (הטור השני, nth-child(2)), נצמיד את התוכן שלו לימין (Flex-End) */
 [data-testid="stColumn"]:nth-child(2) > div {
     display: flex;
-    justify
+    justify-content: flex-end; /* CRITICAL: הכפתור נצמד לימין הטור שלו = מיד אחרי השאלה */
+    align-items: center;
+    width: 100%; 
+    padding: 0 !important;
+}
+
+/* ודא שהטקסט בטור של השאלה (הראשון) מיושר לימין */
+[data-testid="stColumn"]:nth-child(1) > div {
+    text-align: right;
+    padding: 0 !important;
+}
+
+/* ============================================================= */
+/* 🎯 תיקון סופי למרווחים: דריסה אגרסיבית של גובה השורה */
+/* ============================================================= */
+
+/* קונטיינר העמודות הראשי - צמצום Margin בין השורות */
+.st-emotion-cache-1r6r8qj { 
+    margin-bottom: 0.25rem !important; 
+    padding-bottom: 0px !important; 
+    padding-top: 0px !important;
+}
+
+/* צמצום padding ו-line-height בתוך ה-Markdown של השאלה */
+.st-emotion-cache-1c9v68d { 
+    padding-top: 0rem !important;
+    padding-bottom: 0rem !important;
+    line-height: 1.2 !important; 
+    margin: 0 !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# ============================================
+#   כותרת עליונה עם לוגו וטקסט
+# ============================================
+logo_url = "https://raw.githubusercontent.com/arie5981/faq1/main/logobtl.png"
+
+# 🐞 תיקון שגיאת הסינטקס: משתמשים ב-.format במקום ב-f-string מרובה שורות
+st.markdown(
+    """
+<div class="header-bar">
+  <div style="display:flex; align-items:center; gap:0.6rem;">
+    <img src="{logo_url_placeholder}" class="header-logo" alt="לוגו הביטוח הלאומי" />
+    <div style="display:flex; flex-direction:column;">
+      <span class="header-text-main">הביטוח הלאומי</span>
+      <span class="header-text-sub">תמיכה לאתר מייצגים בגבייה</span>
+    </div>
+  </div>
+</div>
+""".format(logo_url_placeholder=logo_url),
+    unsafe_allow_html=True,
+)
+
+# ============================================
+#   קריאת קובץ faq.txt מתוך הריפו
+# ============================================
+FAQ_PATH = "faq.txt"
+
+def read_txt_utf8(path: str) -> str:
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+try:
+    raw_faq = read_txt_utf8(FAQ_PATH)
+except FileNotFoundError:
+    st.error(f"❌ קובץ FAQ לא נמצא בנתיב: {FAQ_PATH}. ודא שהקובץ נמצא בתיקייה הנכונה.")
+    st.stop()
+
+
+# ============================================
+#   עיבוד ה-FAQ וריכוז הקישורים
+# ============================================
+def normalize_he(s: str) -> str:
+    if not s:
+        return ""
+    s = unicodedata.normalize("NFC", s)
+    s = re.sub(r"[\u200e\u200f]", "", s)
+    s = re.sub(r"[^\w\s\u0590-\u05FF]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip().lower()
+    return s
+
+@dataclass
+class FAQItem:
+    question: str
+    variants: List[str]
+    answer: str
+    instruction: Optional[str] = None
+    contact_details: Optional[dict] = None 
+
+def parse_faq_new(text: str) -> List[FAQItem]:
+    items = []
+    
+    global GLOBAL_CONTACT_DETAILS
+    GLOBAL_CONTACT_DETAILS.clear() 
+
+    # 1. חילוץ כל הקישורים הגלובליים מכל הטקסט
+    all_c_matches = re.findall(r">>([^:]+?)\s*:\s*([^<]+?)<<", text)
