@@ -1,6 +1,5 @@
 # ============================================
 #   עוזר אתר מייצגים – גרסה ל-Streamlit
-#   קורא faq.txt מהריפו, מציג צ'אט בסגנון ChatGPT
 # ============================================
 
 import streamlit as st
@@ -90,7 +89,6 @@ html, body, [class*="css"]  {
 }
 
 /* הסתרת כפתור "שלח" של הטופס */
-/* נשתמש ב-data-testid כדי למקד את ההסתרה רק לכפתור השליחה בתוך הטופס */
 div[data-testid="stForm"] div.stButton button {
     visibility: hidden; 
     width: 0.1px;
@@ -99,9 +97,7 @@ div[data-testid="stForm"] div.stButton button {
     height: 0.1px;
 }
 
-
 /* CSS נוסף: עיצוב כפתורי השאלות כקישורים */
-/* הכפתורים של השאלות מחוץ לטופס ייראו כך: */
 div.stButton button { 
     text-align: right !important;
     width: 100%;
@@ -149,16 +145,21 @@ def read_txt_utf8(path: str) -> str:
         return f.read()
 
 try:
-    # 💡 קורא את קובץ faq.txt שצריך להיות באותה תיקייה
     raw_faq = read_txt_utf8(FAQ_PATH)
 except FileNotFoundError:
-    # טיפול בשגיאה למקרה שהקובץ חסר
     st.error(f"❌ קובץ FAQ לא נמצא בנתיב: {FAQ_PATH}. ודא שהקובץ נמצא בתיקייה הנכונה.")
     st.stop()
 
 
 # ============================================
-#   עיבוד ה-FAQ (לוגיקה משופרת מ-faq7.py)
+#   משתנה גלובלי לקישורים
+# ============================================
+# 💡 משתנה גלובלי שיכיל את כל הקישורים המרוכזים
+GLOBAL_CONTACT_DETAILS = {}
+
+
+# ============================================
+#   עיבוד ה-FAQ וריכוז הקישורים
 # ============================================
 def normalize_he(s: str) -> str:
     if not s:
@@ -175,11 +176,24 @@ class FAQItem:
     variants: List[str]
     answer: str
     instruction: Optional[str] = None
-    contact_details: Optional[dict] = None
+    # 💡 שדה contact_details נשאר, אך כעת הוא ריק (כל הקישורים עברו לגלובלי)
+    contact_details: Optional[dict] = None 
 
 def parse_faq_new(text: str) -> List[FAQItem]:
     items = []
-    blocks = re.split(r"(?=שאלה\s*:)", text) 
+    
+    global GLOBAL_CONTACT_DETAILS
+    GLOBAL_CONTACT_DETAILS.clear() # איפוס המילון הגלובלי
+
+    # 1. חילוץ כל הקישורים הגלובליים מכל הטקסט
+    all_c_matches = re.findall(r">>([^:]+?)\s*:\s*([^<]+?)<<", text)
+    GLOBAL_CONTACT_DETAILS = {k.strip(): v.strip() for k, v in all_c_matches}
+    
+    # 2. הסרת כל הבלוקים של הקישורים הגלובליים מטקסט ה-FAQ כדי למנוע הפרעה לניתוח השאלות
+    text_without_links = re.sub(r">>([^:]+?)\s*:\s*([^<]+?)<<", "", text)
+    
+    # 3. פיצול לבלוקים של שאלות
+    blocks = re.split(r"(?=שאלה\s*:)", text_without_links) 
 
     for b in blocks:
         b = b.strip()
@@ -190,7 +204,8 @@ def parse_faq_new(text: str) -> List[FAQItem]:
         v_match = re.search(r"(?s)ניסוחים דומים\s*:\s*(.+?)(?:\nתשובה\s*:|\Z)", b)
         a_match = re.search(r"(?s)תשובה\s*:\s*(.+?)(?:\nהוראה\s*:|\Z)", b)
         i_match = re.search(r"(?s)הוראה\s*:\s*(.+?)(?:\n>>|\Z)", b)
-        c_match = re.findall(r">>([^:]+?)\s*:\s*([^<]+?)<<", b)
+        
+        # 💡 לא מחלצים קישורים מקומיים!
 
         question = q_match.group(1).strip() if q_match else ""
         
@@ -207,9 +222,9 @@ def parse_faq_new(text: str) -> List[FAQItem]:
             variants = [s.strip(" -\t") for s in raw.split("\n") if s.strip()]
 
         instruction = i_match.group(1).strip() if i_match else None
-        contact_details = {k.strip(): v.strip() for k, v in c_match} if c_match else None
         
-        items.append(FAQItem(question, variants, answer, instruction, contact_details))
+        # 💡 מעבירים מילון ריק עבור contact_details
+        items.append(FAQItem(question, variants, answer, instruction, contact_details={}))
 
     return items
 
@@ -224,19 +239,33 @@ for i, item in enumerate(faq_items):
     docs.append(Document(page_content=merged, metadata={"idx": i}))
 
 faq_store = FAISS.from_documents(docs, embeddings)
-# ============================================
-#   חיפוש FAQ – fuzzy + embeddings
-# ============================================
 
+
+# ============================================
+#   פונקציה לעיבוד תוכן התשובה (משתמשת בגלובלי)
+# ============================================
 def process_answer_content(item: FAQItem) -> str:
+    global GLOBAL_CONTACT_DETAILS # משתמש בקישורים הגלובליים
+    
+    # 1. התחלה עם התשובה הראשית
     answer_text = item.answer.strip()
     
-    if item.instruction and item.contact_details:
-        instruction = item.instruction
-        contact_details = item.contact_details
+    # 2. החלפת מילות מפתח בקישורי Markdown בתוך ה-ANSWER
+    if GLOBAL_CONTACT_DETAILS:
+        for key, value in GLOBAL_CONTACT_DETAILS.items():
+            # [שם הקישור](כתובת הקישור/מייל)
+            markdown_link = f"[{key}]({value})"
+            
+            # החלף את הטקסט המופיע בתשובה הראשית
+            answer_text = answer_text.replace(f"[{key}]", markdown_link)
         
-        # החלפת מילות מפתח בקישורי Markdown
-        for key, value in contact_details.items():
+        
+    # 3. טיפול בשדה 'הוראה' והוספתו בסוף
+    if item.instruction: 
+        instruction = item.instruction
+        
+        # 3א. החלפת מילות מפתח בקישורי Markdown בתוך ההוראה
+        for key, value in GLOBAL_CONTACT_DETAILS.items(): # משתמש בקישורים הגלובליים
             markdown_link = f"[{key}]({value})"
             instruction = instruction.replace(f"[{key}]", markdown_link)
         
@@ -246,6 +275,10 @@ def process_answer_content(item: FAQItem) -> str:
     final_content = answer_text.replace('\n', '\n\n')
     return final_content
 
+
+# ============================================
+#   חיפוש FAQ – fuzzy + embeddings
+# ============================================
 
 def search_faq(query: str) -> str:
     nq = normalize_he(query)
@@ -264,9 +297,7 @@ def search_faq(query: str) -> str:
     # קריטריון חיפוש פאזי מחמיר יותר
     if best_score >= 80:
         item = faq_items[best_idx]
-        
         final_content = process_answer_content(item)
-        
         return f"{final_content}\n\nמקור: faq\n\nשאלה מזוהה: {item.question}"
 
     # --- fallback: embeddings (עם שיפור ניקוד) ---
@@ -290,7 +321,7 @@ def search_faq(query: str) -> str:
         
         final_content = process_answer_content(result_item)
 
-        # 💥 הוספת שאלות קשורות (מוחזרות כסטרינג JSON)
+        # הוספת שאלות קשורות (מוחזרות כסטרינג JSON)
         similar_questions = [
             faq_items[d.metadata["idx"]].question
             for d, s, _ in boosted_hits[1:4] 
@@ -338,13 +369,12 @@ POPULAR_QUESTIONS = [
 st.markdown("")
 
 # ----------------------------------------------------
-# 💥 מסך פתיחה עם שאלות נפוצות ככפתורים
+# מסך פתיחה עם שאלות נפוצות ככפתורים
 # ----------------------------------------------------
 if len(st.session_state.messages) == 0:
     st.markdown("### שאלות נפוצות:")
     
     for i, q in enumerate(POPULAR_QUESTIONS, start=1):
-        # 💥 תיקון: שימוש במרכאות משולשות (f"""...""") למניעת שגיאת תחימה
         st.button(
             f"""{q} **<לתשובה לחץ כאן>**""", 
             key=f"popular_q_{i}", 
@@ -356,7 +386,7 @@ if len(st.session_state.messages) == 0:
     st.markdown("")
 
 # ----------------------------------------------------
-# 💥 תיבת הקלט מופיעה כעת ראשונה
+# תיבת הקלט
 # ----------------------------------------------------
 st.markdown('<div class="question-box"></div>', unsafe_allow_html=True)
 
@@ -365,17 +395,16 @@ with st.form("ask_form", clear_on_submit=False):
                           placeholder="שאל שאלה והקש Enter", 
                           key="query_input")
     
-    # הלחצן "שלח" מוסתר על ידי ה-CSS למעלה
     submitted = st.form_submit_button("שלח", on_click=handle_submit)
 
 # ----------------------------------------------------
-# 💥 מפריד ויזואלי בין טופס הקלט להיסטוריה
+# מפריד ויזואלי בין טופס הקלט להיסטוריה
 # ----------------------------------------------------
 if len(st.session_state.messages) > 0:
     st.markdown("---") 
 
 # =======================================================================
-# 💥 הצגת היסטוריית שיחה בזוגות בסדר הפוך (Q -> A) + שאלות קשורות ככפתורים
+# הצגת היסטוריית שיחה בזוגות בסדר הפוך + שאלות קשורות ככפתורים
 # =======================================================================
 
 user_indices = [i for i, msg in enumerate(st.session_state.messages) if msg["role"] == "user"]
@@ -396,7 +425,7 @@ for user_idx in user_indices[::-1]:
         assistant_msg = st.session_state.messages[assistant_idx]
         raw_display_content = assistant_msg['content'] 
         
-        # 💥 חילוץ שאלות קשורות מתוך התוכן
+        # חילוץ שאלות קשורות מתוך התוכן
         similar_questions = []
         sq_match = re.search(r"---SIMILAR_QUESTIONS---(.*)", raw_display_content)
         
@@ -411,17 +440,17 @@ for user_idx in user_indices[::-1]:
         else:
             display_content = raw_display_content
             
-        # הצגת התווית "תשובה:" ועיצוב כללי באמצעות HTML
+        # הצגת התווית "תשובה:"
         st.markdown(f"""
 <div class="assistant-text">
 <strong>תשובה:</strong>
 </div>
 """, unsafe_allow_html=True)
         
-        # הצגת התוכן (כולל ה-Markdown) ב-st.markdown נפרד
+        # הצגת התוכן
         st.markdown(display_content, unsafe_allow_html=True)
 
-        # 💥 הצגת השאלות הקשורות ככפתורים
+        # הצגת השאלות הקשורות ככפתורים
         if similar_questions:
             st.markdown("---") # מפריד
             st.markdown("#### שאלות קשורות:")
@@ -429,7 +458,6 @@ for user_idx in user_indices[::-1]:
             base_key = f"similar_q_{user_idx}" 
             
             for i, sq in enumerate(similar_questions):
-                # 💥 תיקון: שימוש במרכאות משולשות (f"""...""") למניעת שגיאת תחימה
                 st.button(
                     f"""{sq} **<לתשובה לחץ כאן>**""", 
                     key=f"{base_key}_{i}", 
