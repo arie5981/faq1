@@ -1,6 +1,6 @@
 ﻿# הגדרות קישורים גלובליות
 >>b_meyazgim@nioi.gov.il: b_meyazgim@nioi.gov.il<<
->>אתר מייצגים בגבייה: https://meyazegs.btl.gov.il/<<
+>>אתר מייצגים בגביה: https://meyazegs.btl.gov.il/<<
 >>אתר שירות אישי: https://ps.btl.gov.il/<<
 >>שכחתי סיסמה או קוד משתמש: https://ps.btl.gov.il/#/ForgotPassword<<
 >>אישור ייפוי כוח למייצג: https://b2b.btl.gov.il/BTL.ILG.Payments/IshurIpuyKoachInfo.aspx<<
@@ -424,6 +424,7 @@
 - בעיה בדיווחי 100 ייעודי.
 - בעיה בנושא טופס 100 חודשי.
 תשובה: יש להתקשר למוקד מקצועי טופס 100:  02-6709970
+
 
 
 
