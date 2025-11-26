@@ -1,6 +1,6 @@
 # ============================================
 #   עוזר אתר מייצגים – גרסה ל-Streamlit
-#   (קוד סופי: תיקון CSS מלא ליישור כפתורים וצמצום רווחים)
+#   (קוד סופי: תיקון CSS מלא ליישור כפתורים וצמצום רווחים + תיקון שגיאת סינטקס)
 # ============================================
 
 import streamlit as st
@@ -137,50 +137,4 @@ div.stButton button:hover {
 /* 💡 עבור הטור של הכפתור (הטור השני, nth-child(2)), נצמיד את התוכן שלו לימין (Flex-End) */
 [data-testid="stColumn"]:nth-child(2) > div {
     display: flex;
-    justify-content: flex-end; /* CRITICAL: הכפתור נצמד לימין הטור שלו = מיד אחרי השאלה */
-    align-items: center;
-    width: 100%; 
-    padding: 0 !important;
-}
-
-/* ודא שהטקסט בטור של השאלה (הראשון) מיושר לימין */
-[data-testid="stColumn"]:nth-child(1) > div {
-    text-align: right;
-    padding: 0 !important;
-}
-
-/* ============================================================= */
-/* 🎯 תיקון סופי למרווחים: דריסה אגרסיבית של גובה השורה */
-/* ============================================================= */
-
-/* קונטיינר העמודות הראשי - צמצום Margin בין השורות */
-.st-emotion-cache-1r6r8qj { 
-    margin-bottom: 0.25rem !important; 
-    padding-bottom: 0px !important; 
-    padding-top: 0px !important;
-}
-
-/* צמצום padding ו-line-height בתוך ה-Markdown של השאלה */
-.st-emotion-cache-1c9v68d { 
-    padding-top: 0rem !important;
-    padding-bottom: 0rem !important;
-    line-height: 1.2 !important; 
-    margin: 0 !important;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-# ============================================
-#   כותרת עליונה עם לוגו וטקסט
-# ============================================
-logo_url = "https://raw.githubusercontent.com/arie5981/faq1/main/logobtl.png"
-
-st.markdown(
-    f"""
-<div class="header-bar">
-  <div style="display:flex; align-items:center; gap:0.6rem;">
-    <img src="{logo_url}" class="header-logo" alt="לוגו הביטוח הלאומי" />
-    <div style="display:flex; flex-direction:column;">
-      <span class="header-text-main">הביטוח הלאומי</span>
-      <span class="header-text-sub
+    justify
