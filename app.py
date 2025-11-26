@@ -1,6 +1,6 @@
 # ============================================
 #   עוזר אתר מייצגים – גרסה ל-Streamlit
-#   (קוד סופי: תיקון שגיאות קריסה באמצעות Try/Except סביב Embeddings)
+#   (קוד סופי: תיקון CSS יציב יותר למרווחים אנכיים)
 # ============================================
 
 import streamlit as st
@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from typing import List, Optional
 from rapidfuzz import fuzz, process
 
-# ייבוא ספריות ה-OpenAI וה-LangChain
 import openai
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -126,7 +125,7 @@ div.stButton button:hover {
 }
 
 /* ============================================================= */
-/* 🎯 תיקון סופי למיקום הכפתור: דריסת Flexbox של Streamlit */
+/* 🎯 תיקון יציב ליישור הכפתור (Flexbox) */
 /* ============================================================= */
 [data-testid="stColumn"] {
     display: flex !important;
@@ -151,22 +150,21 @@ div.stButton button:hover {
 }
 
 /* ============================================================= */
-/* 🎯 תיקון סופי למרווחים: דריסה אגרסיבית של גובה השורה */
+/* 🎯 תיקון סופי ויציב למרווחים: דריסה גנרית באמצעות מבנה ה-DOM */
 /* ============================================================= */
 
-/* קונטיינר העמודות הראשי - צמצום Margin בין השורות */
-.st-emotion-cache-1r6r8qj { 
-    margin-bottom: 0.25rem !important; 
-    padding-bottom: 0px !important; 
+/* דריסה גנרית עבור כל קונטיינר עמודות שמשמש ל-FAQ */
+/* הפחתת המרווח האנכי בין השורות באמצעות בחירת האלמנט המכיל את העמודות */
+[data-testid="stVerticalBlock"] > div > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"] {
+    margin-bottom: 0.2rem !important; /* רווח קטן מאוד בין שורות השאלה/כפתור */
     padding-top: 0px !important;
+    padding-bottom: 0px !important;
 }
 
-/* צמצום padding ו-line-height בתוך ה-Markdown של השאלה */
-.st-emotion-cache-1c9v68d { 
-    padding-top: 0rem !important;
-    padding-bottom: 0rem !important;
+/* ודא שהטקסט בתוך העמודה הראשונה (השאלה) לא מוסיף רווח מיותר */
+[data-testid="stColumn"]:nth-child(1) > div > div {
+    padding: 0 !important;
     line-height: 1.2 !important; 
-    margin: 0 !important;
 }
 
 </style>
@@ -278,7 +276,6 @@ def parse_faq_new(text: str) -> List[FAQItem]:
 faq_items = parse_faq_new(raw_faq)
 
 # === יצירת Embeddings + FAISS ===
-# יצירת משתנה גלובלי לאחסון ה-FAISS
 faq_store = None
 
 # 🎯 הגנת Try/Except סביב אתחול OpenAI/FAISS
@@ -355,7 +352,7 @@ def search_faq(query: str) -> str:
 
     # --- fallback: embeddings (עם שיפור ניקוד) ---
     # 🎯 בדיקה האם המודל מוכן
-    if not st.session_state.embeddings_ready:
+    if not st.session_state.embeddings_ready or faq_store is None:
         return "לא נמצאה תשובה בחיפוש פאזי. החיפוש הסמנטי אינו פעיל עקב שגיאת התחברות ל-OpenAI. נסה לנסח את השאלה מחדש."
 
     hits = faq_store.similarity_search_with_score(query, k=5)
