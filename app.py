@@ -1,5 +1,6 @@
 # ============================================
 #   עוזר אתר מייצגים – גרסה ל-Streamlit
+#   (מעודכן: שאלות נפוצות וקשורות מוצגות כרשימה)
 # ============================================
 
 import streamlit as st
@@ -26,6 +27,13 @@ except KeyError:
     st.stop()
 
 os.environ["OPENAI_API_KEY"] = openai_api_key
+
+# ============================================
+#   משתנה גלובלי לקישורים
+# ============================================
+# 💡 משתנה גלובלי שיכיל את כל הקישורים המרוכזים
+GLOBAL_CONTACT_DETAILS = {}
+
 
 # ============================================
 #   הגדרות עמוד ו־CSS ל־RTL + עיצוב עדין
@@ -97,19 +105,35 @@ div[data-testid="stForm"] div.stButton button {
     height: 0.1px;
 }
 
-/* CSS נוסף: עיצוב כפתורי השאלות כקישורים */
-div.stButton button { 
-    text-align: right !important;
-    width: 100%;
+/* 💡 CSS לשינוי עיצוב הכפתורים: קטן יותר ומוצמד לשאלה ברשימה */
+.list-item-container {
+    display: flex;
+    align-items: flex-start; /* יישור לפסקה הראשונה של השאלה */
     margin-bottom: 0.5rem;
-    padding: 0.6rem;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    background-color: #f0f0f0;
-    font-size: 1rem;
 }
-div.stButton button:hover {
-    background-color: #e0e0e0;
+
+.list-item-container > div:first-child {
+    flex-grow: 1; /* הרשימה תופסת את רוב השטח */
+    padding-top: 0.2rem;
+    padding-left: 0.5rem; /* רווח מהכפתור */
+}
+
+.list-item-container div.stButton button { 
+    /* עיצוב כפתור התשובה הקטן */
+    height: 28px;
+    line-height: 1;
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    border-radius: 4px;
+    background-color: #3b82f6; /* כחול */
+    color: white;
+    border: none;
+    white-space: nowrap;
+    width: auto;
+    margin: 0;
+}
+.list-item-container div.stButton button:hover {
+    background-color: #2563eb;
 }
 
 </style>
@@ -152,13 +176,6 @@ except FileNotFoundError:
 
 
 # ============================================
-#   משתנה גלובלי לקישורים
-# ============================================
-# 💡 משתנה גלובלי שיכיל את כל הקישורים המרוכזים
-GLOBAL_CONTACT_DETAILS = {}
-
-
-# ============================================
 #   עיבוד ה-FAQ וריכוז הקישורים
 # ============================================
 def normalize_he(s: str) -> str:
@@ -176,7 +193,6 @@ class FAQItem:
     variants: List[str]
     answer: str
     instruction: Optional[str] = None
-    # 💡 שדה contact_details נשאר, אך כעת הוא ריק (כל הקישורים עברו לגלובלי)
     contact_details: Optional[dict] = None 
 
 def parse_faq_new(text: str) -> List[FAQItem]:
@@ -205,8 +221,6 @@ def parse_faq_new(text: str) -> List[FAQItem]:
         a_match = re.search(r"(?s)תשובה\s*:\s*(.+?)(?:\nהוראה\s*:|\Z)", b)
         i_match = re.search(r"(?s)הוראה\s*:\s*(.+?)(?:\n>>|\Z)", b)
         
-        # 💡 לא מחלצים קישורים מקומיים!
-
         question = q_match.group(1).strip() if q_match else ""
         
         answer = ""
@@ -223,7 +237,6 @@ def parse_faq_new(text: str) -> List[FAQItem]:
 
         instruction = i_match.group(1).strip() if i_match else None
         
-        # 💡 מעבירים מילון ריק עבור contact_details
         items.append(FAQItem(question, variants, answer, instruction, contact_details={}))
 
     return items
@@ -245,18 +258,14 @@ faq_store = FAISS.from_documents(docs, embeddings)
 #   פונקציה לעיבוד תוכן התשובה (משתמשת בגלובלי)
 # ============================================
 def process_answer_content(item: FAQItem) -> str:
-    global GLOBAL_CONTACT_DETAILS # משתמש בקישורים הגלובליים
+    global GLOBAL_CONTACT_DETAILS 
     
-    # 1. התחלה עם התשובה הראשית
     answer_text = item.answer.strip()
     
     # 2. החלפת מילות מפתח בקישורי Markdown בתוך ה-ANSWER
     if GLOBAL_CONTACT_DETAILS:
         for key, value in GLOBAL_CONTACT_DETAILS.items():
-            # [שם הקישור](כתובת הקישור/מייל)
             markdown_link = f"[{key}]({value})"
-            
-            # החלף את הטקסט המופיע בתשובה הראשית
             answer_text = answer_text.replace(f"[{key}]", markdown_link)
         
         
@@ -265,7 +274,7 @@ def process_answer_content(item: FAQItem) -> str:
         instruction = item.instruction
         
         # 3א. החלפת מילות מפתח בקישורי Markdown בתוך ההוראה
-        for key, value in GLOBAL_CONTACT_DETAILS.items(): # משתמש בקישורים הגלובליים
+        for key, value in GLOBAL_CONTACT_DETAILS.items():
             markdown_link = f"[{key}]({value})"
             instruction = instruction.replace(f"[{key}]", markdown_link)
         
@@ -294,7 +303,6 @@ def search_faq(query: str) -> str:
     scored.sort(reverse=True, key=lambda x: x[0])
     best_score, best_idx, _ = scored[0]
 
-    # קריטריון חיפוש פאזי מחמיר יותר
     if best_score >= 80:
         item = faq_items[best_idx]
         final_content = process_answer_content(item)
@@ -303,7 +311,6 @@ def search_faq(query: str) -> str:
     # --- fallback: embeddings (עם שיפור ניקוד) ---
     hits = faq_store.similarity_search_with_score(query, k=5)
     
-    # בונוס ניקוד לדימיון פאזי
     boosted_hits = []
     for doc, score in hits:
         idx = doc.metadata["idx"]
@@ -316,12 +323,11 @@ def search_faq(query: str) -> str:
     
     best_doc, best_score, best_idx = boosted_hits[0]
 
-    if best_score <= 1.1: # סף הצלחה מעודכן
+    if best_score <= 1.1: 
         result_item = faq_items[best_idx]
         
         final_content = process_answer_content(result_item)
 
-        # הוספת שאלות קשורות (מוחזרות כסטרינג JSON)
         similar_questions = [
             faq_items[d.metadata["idx"]].question
             for d, s, _ in boosted_hits[1:4] 
@@ -369,18 +375,29 @@ POPULAR_QUESTIONS = [
 st.markdown("")
 
 # ----------------------------------------------------
-# מסך פתיחה עם שאלות נפוצות ככפתורים
+# 💡 הצגת שאלות נפוצות כרשימה ממוספרת עם כפתור קטן
 # ----------------------------------------------------
 if len(st.session_state.messages) == 0:
     st.markdown("### שאלות נפוצות:")
     
     for i, q in enumerate(POPULAR_QUESTIONS, start=1):
-        st.button(
-            f"""{q} **<לתשובה לחץ כאן>**""", 
-            key=f"popular_q_{i}", 
-            on_click=handle_submit, 
-            args=(q,)
-        )
+        # 💡 שימוש ב-HTML/CSS כדי לשלב את השאלה והכפתור באותה שורה
+        # השימוש ב-st.empty() בתוך לולאה מבטיח שהכפתור יפעל נכון
+        
+        col_q, col_btn = st.columns([0.8, 0.2])
+        
+        with col_q:
+            # 💡 הצגת השאלה כחלק מרשימה ממוספרת
+            st.markdown(f"**{i}.** {q}", unsafe_allow_html=True)
+            
+        with col_btn:
+             # 💡 כפתור קטן שמפעיל את handle_submit עם תוכן השאלה
+            st.button(
+                "לתשובה", 
+                key=f"popular_q_{i}", 
+                on_click=handle_submit, 
+                args=(q,)
+            )
 
     st.markdown("## איך אפשר לעזור?")
     st.markdown("")
@@ -404,7 +421,7 @@ if len(st.session_state.messages) > 0:
     st.markdown("---") 
 
 # =======================================================================
-# הצגת היסטוריית שיחה בזוגות בסדר הפוך + שאלות קשורות ככפתורים
+# הצגת היסטוריית שיחה ורשימת שאלות קשורות
 # =======================================================================
 
 user_indices = [i for i, msg in enumerate(st.session_state.messages) if msg["role"] == "user"]
@@ -425,7 +442,6 @@ for user_idx in user_indices[::-1]:
         assistant_msg = st.session_state.messages[assistant_idx]
         raw_display_content = assistant_msg['content'] 
         
-        # חילוץ שאלות קשורות מתוך התוכן
         similar_questions = []
         sq_match = re.search(r"---SIMILAR_QUESTIONS---(.*)", raw_display_content)
         
@@ -433,34 +449,39 @@ for user_idx in user_indices[::-1]:
             try:
                 sq_json_str = sq_match.group(1).strip()
                 similar_questions = json.loads(sq_json_str)
-                # הסרת ה-JSON מתוכן התצוגה הראשי
                 display_content = raw_display_content.replace(f"\n\n---SIMILAR_QUESTIONS---{sq_json_str}", "").strip()
             except json.JSONDecodeError:
                 display_content = raw_display_content
         else:
             display_content = raw_display_content
             
-        # הצגת התווית "תשובה:"
         st.markdown(f"""
 <div class="assistant-text">
 <strong>תשובה:</strong>
 </div>
 """, unsafe_allow_html=True)
         
-        # הצגת התוכן
         st.markdown(display_content, unsafe_allow_html=True)
 
-        # הצגת השאלות הקשורות ככפתורים
+        # 💡 הצגת השאלות הקשורות כרשימה ממוספרת עם כפתור קטן
         if similar_questions:
-            st.markdown("---") # מפריד
+            st.markdown("---") 
             st.markdown("#### שאלות קשורות:")
             
             base_key = f"similar_q_{user_idx}" 
             
-            for i, sq in enumerate(similar_questions):
-                st.button(
-                    f"""{sq} **<לתשובה לחץ כאן>**""", 
-                    key=f"{base_key}_{i}", 
-                    on_click=handle_submit, 
-                    args=(sq,)
-                )
+            for i, sq in enumerate(similar_questions, start=1):
+                col_q, col_btn = st.columns([0.8, 0.2])
+
+                with col_q:
+                    # 💡 הצגת השאלה כחלק מרשימה ממוספרת
+                    st.markdown(f"**{i}.** {sq}", unsafe_allow_html=True)
+                    
+                with col_btn:
+                    # 💡 כפתור קטן שמפעיל את handle_submit עם תוכן השאלה
+                    st.button(
+                        "לתשובה", 
+                        key=f"{base_key}_{i}", 
+                        on_click=handle_submit, 
+                        args=(sq,)
+                    )
